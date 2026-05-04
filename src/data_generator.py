@@ -1,49 +1,36 @@
 import numpy as np
 import pandas as pd
 
-np.random.seed(42)
-
-N = 5000
-n_per_group = N // 2
-
-# Group A (control): approval ~0.62, default ~0.11
-# Group B (treatment): approval ~0.71, default ~0.09
-
-approved_A = np.random.binomial(1, 0.62, n_per_group)
-defaulted_A = np.random.binomial(1, np.where(approved_A == 1, 0.11 * 1.15, 0), n_per_group)
-defaulted_A = np.clip(defaulted_A, 0, 1)
-
-approved_B = np.random.binomial(1, 0.71, n_per_group)
-defaulted_B = np.random.binomial(1, np.where(approved_B == 1, 0.09 * 1.10, 0), n_per_group)
-defaulted_B = np.clip(defaulted_B, 0, 1)
-
-loan_size_A = np.random.lognormal(mean=9.5, sigma=0.8, size=n_per_group)
-loan_size_B = np.random.lognormal(mean=9.7, sigma=0.8, size=n_per_group)
-
-processing_A = np.random.normal(4.2, 1.5, n_per_group)
-processing_B = np.random.normal(3.8, 1.4, n_per_group)
-
-df_A = pd.DataFrame({
-    "group": "A",
-    "approved": approved_A,
-    "defaulted": defaulted_A,
-    "loan_size": np.round(loan_size_A, 2),
-    "processing_time": np.round(processing_A, 3),
-})
-
-df_B = pd.DataFrame({
-    "group": "B",
-    "approved": approved_B,
-    "defaulted": defaulted_B,
-    "loan_size": np.round(loan_size_B, 2),
-    "processing_time": np.round(processing_B, 3),
-})
-
-df = pd.concat([df_A, df_B], ignore_index=True)
-df.to_csv("/home/workspace/Projects/ab-testing-eligibility/data.csv", index=False)
-
-print(f"Generated {len(df)} rows — Group A: {len(df_A)}, Group B: {len(df_B)}")
-print(f"Group A approval rate: {df_A['approved'].mean():.4f}")
-print(f"Group B approval rate: {df_B['approved'].mean():.4f}")
-print(f"Group A default rate:  {df_A['defaulted'].mean():.4f}")
-print(f"Group B default rate:  {df_B['defaulted'].mean():.4f}")
+def generate_credit_data(n=5000, seed=42):
+    np.random.seed(seed)
+    
+    half = n // 2
+    groups = ['A'] * half + ['B'] * half
+    
+    approval_probs = {'A': 0.62, 'B': 0.71}
+    default_probs = {'A': 0.11, 'B': 0.09}
+    
+    approval_rate = np.array([np.random.random() < approval_probs[g] for g in groups])
+    default_rate = np.where(
+        approval_rate,
+        np.array([np.random.random() < default_probs[g] for g in groups]),
+        False
+    )
+    
+    base_loan_size = np.random.lognormal(mean=9.5, sigma=0.7, size=n)
+    noise = np.random.normal(0, 0.1, size=n)
+    avg_loan_size = np.where(approval_rate, base_loan_size * (1 + noise), 0.0)
+    
+    base_time = np.random.normal(loc=3.5, scale=1.2, size=n)
+    time_noise = np.random.exponential(scale=0.5, size=n)
+    processing_time = np.where(approval_rate, np.maximum(base_time + time_noise, 0.5), 0.0)
+    
+    df = pd.DataFrame({
+        'group': groups,
+        'approved': approval_rate,
+        'defaulted': default_rate,
+        'loan_size': avg_loan_size,
+        'processing_time': processing_time
+    })
+    
+    return df

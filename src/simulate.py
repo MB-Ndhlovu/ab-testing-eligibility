@@ -1,46 +1,66 @@
 import pandas as pd
-from src.statistical import two_proportion_ztest, confidence_interval, statistical_power, min_detectable_effect
+from src.data_generator import generate_credit_data
+from src.statistical import (
+    two_proportion_ztest,
+    confidence_interval,
+    statistical_power,
+    minimum_detectable_effect
+)
 
-def run_simulation(df, alpha=0.05):
-    df_A = df[df["group"] == "A"]
-    df_B = df[df["group"] == "B"]
-
-    n_A = len(df_A)
-    n_B = len(df_B)
-
-    approval_A = df_A["approved"].mean()
-    approval_B = df_B["approved"].mean()
-    default_A = df_A["defaulted"].mean()
-    default_B = df_B["defaulted"].mean()
-
-    # Two-proportion z-test for approval rate
-    z_approval, p_approval = two_proportion_ztest(n_A, approval_A, n_B, approval_B)
-    ci_approval = confidence_interval(approval_A, approval_B, n_A, n_B, alpha)
-    power_approval = statistical_power(n_A, n_B, approval_A, approval_B, alpha)
-    mde_approval = min_detectable_effect(n_A, n_B, approval_A, alpha)
-
-    # Two-proportion z-test for default rate
-    z_default, p_default = two_proportion_ztest(n_A, default_A, n_B, default_B)
-    ci_default = confidence_interval(default_A, default_B, n_A, n_B, alpha)
-    power_default = statistical_power(n_A, n_B, default_A, default_B, alpha)
-    mde_default = min_detectable_effect(n_A, n_B, default_A, alpha)
-
-    results = {
-        "n_per_group": n_A,
-        "alpha": alpha,
-        "approval_rate": {
-            "group_A": approval_A, "group_B": approval_B,
-            "z_statistic": z_approval, "p_value": p_approval,
-            "ci_95": ci_approval, "power": power_approval,
-            "mde": mde_approval, "significant": p_approval < alpha,
-            "effect": approval_B - approval_A,
-        },
-        "default_rate": {
-            "group_A": default_A, "group_B": default_B,
-            "z_statistic": z_default, "p_value": p_default,
-            "ci_95": ci_default, "power": power_default,
-            "mde": mde_default, "significant": p_default < alpha,
-            "effect": default_B - default_A,
-        },
+def summarize_group(df, group):
+    g = df[df['group'] == group]
+    approved = g['approved'].sum()
+    defaulted = g['defaulted'].sum()
+    n = len(g)
+    n_approved = approved
+    
+    return {
+        'n': n,
+        'approved': approved,
+        'defaulted': defaulted,
+        'approval_rate': approved / n,
+        'default_rate': defaulted / n_approved if n_approved > 0 else 0,
+        'avg_loan_size': g.loc[g['approved'], 'loan_size'].mean() if n_approved > 0 else 0,
+        'avg_processing_time': g.loc[g['approved'], 'processing_time'].mean() if n_approved > 0 else 0
     }
-    return results
+
+def run_simulation(n=5000, alpha=0.05):
+    df = generate_credit_data(n=n)
+    
+    a = summarize_group(df, 'A')
+    b = summarize_group(df, 'B')
+    
+    z_approval, p_approval, _, _, se_approval = two_proportion_ztest(
+        a['n'], a['approved'], b['n'], b['approved']
+    )
+    ci_approval = confidence_interval(a['n'], a['approval_rate'], b['n'], b['approval_rate'])
+    
+    n_a_approved = a['approved']
+    n_b_approved = b['approved']
+    
+    z_default, p_default, _, _, se_default = two_proportion_ztest(
+        n_a_approved, a['defaulted'], n_b_approved, b['defaulted']
+    )
+    ci_default = confidence_interval(a['n'], a['default_rate'], b['n'], b['default_rate'])
+    
+    power_approval = statistical_power(a['n'], b['n'], a['approval_rate'], b['approval_rate'])
+    mde_approval = minimum_detectable_effect(a['n'], b['n'])
+    
+    return {
+        'group_a': a,
+        'group_b': b,
+        'approval_test': {
+            'z_statistic': z_approval,
+            'p_value': p_approval,
+            'ci_95': ci_approval,
+            'significant': p_approval < alpha,
+            'mde': mde_approval,
+            'power': power_approval
+        },
+        'default_test': {
+            'z_statistic': z_default,
+            'p_value': p_default,
+            'ci_95': ci_default,
+            'significant': p_default < alpha
+        }
+    }

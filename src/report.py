@@ -1,48 +1,56 @@
 import json
 
 def generate_report(results):
-    n = results["n_per_group"]
-    alpha = results["alpha"]
-
     lines = []
     lines.append("=" * 60)
-    lines.append("   A/B TESTING FRAMEWORK — CREDIT ELIGIBILITY SUMMARY")
+    lines.append("A/B TESTING FRAMEWORK — CREDIT ELIGIBILITY RESULTS")
     lines.append("=" * 60)
-    lines.append(f"  Sample size per group : {n}")
-    lines.append(f"  Significance level    : α = {alpha}")
-    lines.append("-" * 60)
-
-    for metric in ["approval_rate", "default_rate"]:
-        m = results[metric]
-        label = "Approval Rate" if metric == "approval_rate" else "Default Rate"
-        lines.append(f"\n  [{label}]")
-        lines.append(f"    Group A (control)  : {m['group_A']:.4f}")
-        lines.append(f"    Group B (treatment): {m['group_B']:.4f}")
-        lines.append(f"    Treatment effect    : {m['effect']:+.4f}")
-        lines.append(f"    Z-statistic         : {m['z_statistic']:.4f}")
-        lines.append(f"    P-value             : {m['p_value']:.6f}")
-        lines.append(f"    95% CI              : [{m['ci_95'][0]:+.4f}, {m['ci_95'][1]:+.4f}]")
-        lines.append(f"    Statistical power   : {m['power']:.4f}")
-        lines.append(f"    Min. detectable eff.: {m['mde']:.4f}")
-        sig = "SIGNIFICANT" if m["significant"] else "NOT SIGNIFICANT"
-        lines.append(f"    Conclusion          : {sig} at α={alpha}")
-
+    
+    lines.append("\n--- GROUP SUMMARIES ---")
+    a = results['group_a']
+    b = results['group_b']
+    
+    lines.append(f"\nGroup A (Control) — n={a['n']}")
+    lines.append(f"  Approval Rate:   {a['approval_rate']:.4f} ({int(a['approved'])}/{a['n']})")
+    lines.append(f"  Default Rate:    {a['default_rate']:.4f}")
+    lines.append(f"  Avg Loan Size:   ${a['avg_loan_size']:,.2f}")
+    lines.append(f"  Avg Process Time: {a['avg_processing_time']:.2f} days")
+    
+    lines.append(f"\nGroup B (Treatment) — n={b['n']}")
+    lines.append(f"  Approval Rate:   {b['approval_rate']:.4f} ({int(b['approved'])}/{b['n']})")
+    lines.append(f"  Default Rate:    {b['default_rate']:.4f}")
+    lines.append(f"  Avg Loan Size:   ${b['avg_loan_size']:,.2f}")
+    lines.append(f"  Avg Process Time: {b['avg_processing_time']:.2f} days")
+    
     lines.append("\n" + "=" * 60)
-    lines.append("  OVERALL RECOMMENDATION")
+    lines.append("STATISTICAL TESTS (Two-Proportion Z-Test, α=0.05)")
     lines.append("=" * 60)
-
-    ar_sig = results["approval_rate"]["significant"]
-    dr_sig = results["default_rate"]["significant"]
-
-    if ar_sig and dr_sig:
-        lines.append("  Deploy the new model — better approval rate with lower default risk.")
-    elif ar_sig:
-        lines.append("  Deploy cautiously — higher approval rate but no default improvement.")
-    elif dr_sig:
-        lines.append("  Deploy cautiously — lower default rate but no approval improvement.")
+    
+    at = results['approval_test']
+    lines.append("\n[Approval Rate]")
+    lines.append(f"  Z-Statistic:  {at['z_statistic']:.4f}")
+    lines.append(f"  P-Value:      {at['p_value']:.6f}")
+    lines.append(f"  95% CI:       [{at['ci_95'][0]:.4f}, {at['ci_95'][1]:.4f}]")
+    lines.append(f"  MDE:          {at['mde']:.4f}")
+    lines.append(f"  Power:        {at['power']:.4f}")
+    lines.append(f"  Significant: {'YES' if at['significant'] else 'NO'}")
+    
+    dt = results['default_test']
+    lines.append("\n[Default Rate]")
+    lines.append(f"  Z-Statistic:  {dt['z_statistic']:.4f}")
+    lines.append(f"  P-Value:      {dt['p_value']:.6f}")
+    lines.append(f"  95% CI:       [{dt['ci_95'][0]:.4f}, {dt['ci_95'][1]:.4f}]")
+    lines.append(f"  Significant:  {'YES' if dt['significant'] else 'NO'}")
+    
+    lines.append("\n" + "=" * 60)
+    if at['significant'] and dt['significant']:
+        lines.append("CONCLUSION: New model (B) is SIGNIFICANTLY BETTER on both metrics.")
+    elif at['significant']:
+        lines.append("CONCLUSION: New model (B) significantly improves approval rate only.")
+    elif dt['significant']:
+        lines.append("CONCLUSION: New model (B) significantly reduces default rate only.")
     else:
-        lines.append("  Do not deploy — insufficient evidence of improvement.")
-
-    report = "\n".join(lines)
-    print(report)
-    return report
+        lines.append("CONCLUSION: No statistically significant difference detected.")
+    lines.append("=" * 60)
+    
+    return "\n".join(lines)

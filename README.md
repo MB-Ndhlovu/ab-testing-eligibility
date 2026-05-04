@@ -2,27 +2,25 @@
 
 ## Business Problem
 
-A lender wants to test a new credit eligibility model against their current model. The new model (Group B) is hypothesized to:
-- Increase approval rates (approve more worthy applicants)
-- Decrease default rates (better at identifying risky borrowers)
+A lender wants to test a new credit eligibility model against their current model. The new model (Group B) should:
+- Approve more applicants (higher approval rate)
+- Reduce defaults (lower default rate)
 
-We run a controlled A/B experiment to determine if the new model (treatment) outperforms the current model (control).
+We run a controlled A/B experiment to determine if the new model is statistically superior.
 
 ## Methodology
 
-1. **Data Generation**: Simulate 5,000 loan applications split evenly between control (Group A) and treatment (Group B)
+1. **Data Generation**: Simulate 5,000 loan applications split evenly between control (A) and treatment (B)
 2. **Metrics Tracked**:
-   - Approval Rate (primary)
-   - Default Rate (primary)
+   - Approval Rate: proportion of applicants approved
+   - Default Rate: proportion of approved loans that go into default
    - Average Loan Size
    - Processing Time
-3. **Statistical Testing**: Two-proportion z-test for each binary metric
-4. **Reporting**: Full summary with z-statistics, p-values, 95% confidence intervals, and statistical conclusions
+3. **Statistical Test**: Two-proportion z-test for approval and default rates
+4. **Reporting**: 95% confidence intervals, p-values, and statistical conclusions
 
-## Files
+## Hypotheses
 
-- `src/data_generator.py` — Synthetic data generation
-- `src/statistical.py` — Statistical tests (z-test, CI, power, MDE)
-- `src/simulate.py` — Experiment simulation and treatment effect computation
-- `src/report.py` — Human-readable summary report
-- `run_pipeline.py` — Orchestrates the full pipeline
+- **Approval Rate**: H₀: p_B ≤ p_A vs H₁: p_B > p_A (one-sided)
+- **Default Rate**: H₀: p_B ≥ p_A vs H₁: p_B < p_A (one-sided)
+- **Significance Level**: α = 0.05
