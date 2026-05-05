@@ -1,41 +1,49 @@
 # A/B Testing Framework for Credit Eligibility
 
-## Business Problem
+## Overview
+An A/B testing framework for evaluating a new credit eligibility model against the current model. The framework generates synthetic lending data, performs statistical hypothesis testing, and produces actionable reports.
 
-A consumer lender wants to evaluate whether a new credit eligibility model (treatment) performs better than their current model (control). The key metrics are:
-- **Approval Rate** — higher is better (more loans originated)
-- **Default Rate** — lower is better (fewer losses)
+## Business Problem
+A lender wants to test a new credit eligibility model (Group B) against their current model (Group A). The goal is to determine whether the new model improves approval rates and/or reduces default rates before deploying to production.
 
 ## Methodology
 
-1. **Data Generation**: Simulate 5,000 loan applications split evenly between control (Group A) and treatment (Group B).
-2. **Synthetic Outcomes**: Group A uses current eligibility rules; Group B uses the new model.
-   - Group A: approval_rate ≈ 62%, default_rate ≈ 11%
-   - Group B: approval_rate ≈ 71%, default_rate ≈ 9% (new model is marginally better)
-   - Realistic noise added so results are not perfectly clean
-3. **Statistical Testing**: Two-proportion z-test for each metric.
-   - Test: H₀: p_B = p_A vs H₁: p_B ≠ p_A
-   - Significance level: α = 0.05
-4. **Output**: z-statistic, p-value, 95% confidence interval for the difference, and a clear statistical conclusion.
+### Experiment Design
+- **Control Group (A)**: Current eligibility model
+- **Treatment Group (B)**: New eligibility model
+- **Sample Size**: 5,000 applicants (2,500 per group)
 
-## File Structure
+### Key Metrics
+1. **Approval Rate**: Proportion of applicants approved
+2. **Default Rate**: Proportion of approved loans that go into default
+3. **Average Loan Size**: Mean approved loan amount
+4. **Processing Time**: Average time to process applications
 
+### Statistical Methods
+- Two-proportion z-test for comparing approval and default rates
+- 95% confidence intervals for the difference in proportions
+- Statistical power analysis
+- Minimum detectable effect (MDE) calculation
+
+### Success Criteria
+- α (significance level) = 0.05
+- Statistically significant improvement in at least one key metric with no degradation in others
+
+## Project Structure
 ```
 ab-testing-eligibility/
 ├── README.md
 ├── requirements.txt
-├── src/
-│   ├── __init__.py
-│   ├── data_generator.py   # generate synthetic loan data
-│   ├── statistical.py      # two-proportion z-test, CI, power
-│   ├── simulate.py         # run experiment and compute effects
-│   └── report.py           # human-readable summary
-└── run_pipeline.py        # end-to-end execution
+├── run_pipeline.py
+└── src/
+    ├── __init__.py
+    ├── data_generator.py
+    ├── statistical.py
+    ├── simulate.py
+    └── report.py
 ```
 
-## Key Metrics
-
-| Metric         | Group A (Control) | Group B (Treatment) | Direction |
-|----------------|-------------------|----------------------|-----------|
-| Approval Rate  | ~62%              | ~71%                 | ↑ better  |
-| Default Rate   | ~11%              | ~9%                  | ↓ better  |
+## Usage
+```bash
+python run_pipeline.py
+```

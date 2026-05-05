@@ -1,32 +1,58 @@
 {
-  "n_A": 2500,
-  "n_B": 2500,
-  "approval_rate_A": 0.6188,
-  "approval_rate_B": 0.7176,
-  "default_rate_A": 0.1128,
-  "default_rate_B": 0.08,
-  "avg_loan_size_A": 15142.11,
-  "avg_loan_size_B": 18288.4,
-  "avg_processing_time_A": 25.26,
-  "avg_processing_time_B": 25.43,
-  "approval_test": {
-    "z_stat": 7.4186,
-    "p_value": 0.0,
-    "significant": true,
-    "ci_lower": 0.0728,
-    "ci_upper": 0.1248,
-    "diff": 0.0988,
-    "power": 1.0,
-    "mde": 0.0385
+  "metrics": {
+    "group_a": {
+      "approval_rate": 0.6188,
+      "approval_count": 1547,
+      "total_applicants": 2500,
+      "default_rate": 0.0652,
+      "default_count": 163,
+      "avg_loan_size": 18637.756409973845,
+      "avg_processing_time": 3.321048858954343
+    },
+    "group_b": {
+      "approval_rate": 0.7176,
+      "approval_count": 1794,
+      "total_applicants": 2500,
+      "default_rate": 0.0604,
+      "default_count": 151,
+      "avg_loan_size": 24533.612007798954,
+      "avg_processing_time": 2.997732113894092
+    }
   },
-  "default_test": {
-    "z_stat": -3.9292,
-    "p_value": 8.5e-05,
-    "significant": true,
-    "ci_lower": -0.0491,
-    "ci_upper": -0.0165,
-    "diff": -0.0328,
-    "power": 0.9755,
-    "mde": 0.0251
+  "approval_rate_test": {
+    "z_statistic": 7.4185755626574235,
+    "p_value": 1.1834977442504169e-13,
+    "ci_lower": 0.07284093244448098,
+    "ci_upper": 0.12475906755551902,
+    "p1": 0.6188,
+    "p2": 0.7176,
+    "p_diff": 0.0988
+  },
+  "default_rate_test": {
+    "z_statistic": -2.093499024923274,
+    "p_value": 0.03630463101892811,
+    "ci_lower": -0.04117443205899912,
+    "ci_upper": -0.0012171064962223123,
+    "p1": 0.10536522301228184,
+    "p2": 0.08416945373467112,
+    "p_diff": -0.021195769277610715
+  },
+  "power_analysis": {
+    "approval_rate": {
+      "observed_effect": 0.0988,
+      "power": 0.9373797756920502,
+      "mde": 0.0792407962319869
+    },
+    "default_rate": {
+      "observed_effect": 0.004799999999999992,
+      "power": 0.05219529741850624,
+      "mde": 0.09720434964212657
+    }
+  },
+  "sample_sizes": {
+    "group_a": 2500,
+    "group_b": 2500,
+    "approved_a": 1547,
+    "approved_b": 1794
   }
 }

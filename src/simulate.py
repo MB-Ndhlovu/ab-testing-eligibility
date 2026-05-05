@@ -1,97 +1,84 @@
-"""
-Run the A/B experiment simulation and compute treatment effects.
-"""
-
-from src.data_generator import generate_data, summarize
-from src.statistical import (
-    two_proportion_ztest,
-    confidence_interval_diff,
-    statistical_power,
-    min_detectable_effect,
-)
+import pandas as pd
+from src.data_generator import generate_credit_data, compute_group_metrics
+from src.statistical import two_proportion_z_test, calculate_statistical_power, minimum_detectable_effect
 
 
-def run_experiment(n=5000, alpha=0.05, seed=42):
+def run_experiment(n_applicants: int = 5000) -> dict:
     """
-    Run the full A/B experiment.
+    Run the complete A/B experiment simulation.
 
-    Parameters
-    ----------
-    n : int
-        Total number of simulated applicants.
-    alpha : float
-        Significance level.
-    seed : int
-        Random seed.
+    Args:
+        n_applicants: Total number of applicants to generate
 
-    Returns
-    -------
-    dict with detailed experiment results.
+    Returns:
+        Dictionary containing all experiment results
     """
-    data = generate_data(n=n, seed=seed)
-    summary = summarize(data)
+    # Generate data
+    df = generate_credit_data(n=n_applicants)
 
-    ga = data["group_a"]
-    gb = data["group_b"]
+    # Compute metrics for each group
+    metrics_a = compute_group_metrics(df, "A")
+    metrics_b = compute_group_metrics(df, "B")
 
-    n_a = len(ga["approved"])
-    n_b = len(gb["approved"])
-
-    # Approval rate test
-    approved_a = int(ga["approved"].sum())
-    approved_b = int(gb["approved"].sum())
-
-    approval_test = two_proportion_ztest(n_a, approved_a, n_b, approved_b)
-    approval_ci = confidence_interval_diff(n_a, approved_a, n_b, approved_b, alpha=alpha)
-
-    # Default rate test (only among approved)
-    approved_idx_a = ga["approved"]
-    approved_idx_b = gb["approved"]
-
-    defaulted_a_count = int(ga["defaulted"][approved_idx_a].sum())
-    defaulted_b_count = int(gb["defaulted"][approved_idx_b].sum())
-
-    approved_count_a = approved_a
-    approved_count_b = approved_b
-
-    default_test = two_proportion_ztest(
-        approved_count_a, defaulted_a_count,
-        approved_count_b, defaulted_b_count,
-    )
-    default_ci = confidence_interval_diff(
-        approved_count_a, defaulted_a_count,
-        approved_count_b, defaulted_b_count,
-        alpha=alpha,
+    # Approval rate z-test
+    approval_test = two_proportion_z_test(
+        n1=metrics_a["total_applicants"],
+        x1=metrics_a["approval_count"],
+        n2=metrics_b["total_applicants"],
+        x2=metrics_b["approval_count"]
     )
 
-    # Power analysis
-    p_approval_a = approved_a / n_a
-    p_approval_b = approved_b / n_b
-    approval_power = statistical_power(p_approval_a, p_approval_b, n_a, alpha=alpha)
+    # Default rate z-test (among approved)
+    df_approved_a = df[(df["group"] == "A") & df["approved"]]
+    df_approved_b = df[(df["group"] == "B") & df["approved"]]
 
-    p_default_a = defaulted_a_count / approved_count_a if approved_count_a else 0
-    p_default_b = defaulted_b_count / approved_count_b if approved_count_b else 0
-    default_power = statistical_power(p_default_a, p_default_b, approved_count_a, alpha=alpha)
+    default_test = two_proportion_z_test(
+        n1=len(df_approved_a),
+        x1=int(df_approved_a["defaulted"].sum()),
+        n2=len(df_approved_b),
+        x2=int(df_approved_b["defaulted"].sum())
+    )
 
-    approval_mde = min_detectable_effect(p_approval_a, n_a, power=0.8, alpha=alpha)
-    default_mde  = min_detectable_effect(p_default_a, approved_count_a, power=0.8, alpha=alpha)
+    # Calculate power and MDE for approval rate
+    n_a = metrics_a["total_applicants"]
+    n_b = metrics_b["total_applicants"]
+    effect_approval = abs(metrics_b["approval_rate"] - metrics_a["approval_rate"])
+
+    power_approval = calculate_statistical_power(n_a, n_b, effect_approval)
+    mde_approval = minimum_detectable_effect(n_a, n_b)
+
+    # Calculate power and MDE for default rate
+    n_default_a = len(df_approved_a)
+    n_default_b = len(df_approved_b)
+    effect_default = abs(metrics_b["default_rate"] - metrics_a["default_rate"])
+
+    power_default = calculate_statistical_power(n_default_a, n_default_b, effect_default)
+    mde_default = minimum_detectable_effect(n_default_a, n_default_b)
 
     return {
-        "sample_sizes": {"group_a": n_a, "group_b": n_b},
-        "summary": summary,
-        "approval_rate": {
-            "test": approval_test,
-            "ci": approval_ci,
-            "power": approval_power,
-            "mde": approval_mde,
-            "significant": approval_test["p_value"] < alpha,
+        "data": df,
+        "metrics": {
+            "group_a": metrics_a,
+            "group_b": metrics_b
         },
-        "default_rate": {
-            "test": default_test,
-            "ci": default_ci,
-            "power": default_power,
-            "mde": default_mde,
-            "significant": default_test["p_value"] < alpha,
+        "approval_rate_test": approval_test,
+        "default_rate_test": default_test,
+        "power_analysis": {
+            "approval_rate": {
+                "observed_effect": effect_approval,
+                "power": power_approval,
+                "mde": mde_approval
+            },
+            "default_rate": {
+                "observed_effect": effect_default,
+                "power": power_default,
+                "mde": mde_default
+            }
         },
-        "alpha": alpha,
+        "sample_sizes": {
+            "group_a": n_a,
+            "group_b": n_b,
+            "approved_a": n_default_a,
+            "approved_b": n_default_b
+        }
     }
