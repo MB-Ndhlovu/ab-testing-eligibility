@@ -7,30 +7,52 @@ def generate_credit_data(n=5000, seed=42):
     half = n // 2
     groups = ['A'] * half + ['B'] * half
     
-    approval_probs = {'A': 0.62, 'B': 0.71}
-    default_probs = {'A': 0.11, 'B': 0.09}
+    approval_rate_a = 0.62
+    approval_rate_b = 0.71
+    default_rate_a = 0.11
+    default_rate_b = 0.09
     
-    approval_rate = np.array([np.random.random() < approval_probs[g] for g in groups])
-    default_rate = np.where(
-        approval_rate,
-        np.array([np.random.random() < default_probs[g] for g in groups]),
-        False
+    approved_a = np.random.random(half) < approval_rate_a
+    approved_b = np.random.random(half) < approval_rate_b
+    
+    default_approved_a = approved_a & (np.random.random(half) < default_rate_a)
+    default_approved_b = approved_b & (np.random.random(half) < default_rate_b)
+    
+    loan_size_a = np.where(approved_a, np.random.lognormal(9.5, 0.6, half), 0)
+    loan_size_b = np.where(approved_b, np.random.lognormal(9.7, 0.6, half), 0)
+    
+    processing_time_a = np.where(
+        approved_a,
+        np.random.normal(48, 15, half),
+        np.random.normal(72, 20, half)
     )
-    
-    base_loan_size = np.random.lognormal(mean=9.5, sigma=0.7, size=n)
-    noise = np.random.normal(0, 0.1, size=n)
-    avg_loan_size = np.where(approval_rate, base_loan_size * (1 + noise), 0.0)
-    
-    base_time = np.random.normal(loc=3.5, scale=1.2, size=n)
-    time_noise = np.random.exponential(scale=0.5, size=n)
-    processing_time = np.where(approval_rate, np.maximum(base_time + time_noise, 0.5), 0.0)
+    processing_time_b = np.where(
+        approved_b,
+        np.random.normal(44, 14, half),
+        np.random.normal(68, 18, half)
+    )
     
     df = pd.DataFrame({
         'group': groups,
-        'approved': approval_rate,
-        'defaulted': default_rate,
-        'loan_size': avg_loan_size,
-        'processing_time': processing_time
+        'approved': list(approved_a) + list(approved_b),
+        'defaulted': list(default_approved_a) + list(default_approved_b),
+        'loan_size': list(loan_size_a) + list(loan_size_b),
+        'processing_time': list(processing_time_a) + list(processing_time_b)
     })
     
     return df
+
+def summarize_by_group(df):
+    summary = df.groupby('group').agg(
+        total=('approved', 'count'),
+        approved=('approved', 'sum'),
+        defaulted=('defaulted', 'sum'),
+        approval_rate=('approved', 'mean'),
+        default_rate=('defaulted', lambda x: x[df.loc[x.index, 'approved'] == 1].mean()),
+        avg_loan_size=('loan_size', lambda x: x[x > 0].mean()),
+        avg_processing_time=('processing_time', 'mean')
+    ).reset_index()
+    
+    summary['default_rate'] = df[df['approved'] == 1].groupby('group')['defaulted'].mean().values
+    
+    return summary

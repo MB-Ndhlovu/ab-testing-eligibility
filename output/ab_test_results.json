@@ -1,0 +1,24 @@
+{
+  "n_per_group": 2500,
+  "approval_rate_A": 0.6188,
+  "approval_rate_B": 0.7176,
+  "default_rate_A": 0.1085972850678733,
+  "default_rate_B": 0.0875139353400223,
+  "approval_z": 7.4185755626574235,
+  "approval_p_value": 1.1834977442504169e-13,
+  "approval_significant": true,
+  "default_z": -2.5065046534469744,
+  "default_p_value": 0.012193145268851957,
+  "default_significant": true,
+  "power_approval": 0.9999999774255035,
+  "power_default": 0.7080759094944828,
+  "mde": 0.03962039811599345,
+  "approval_ci": [
+    0.07284140944843903,
+    0.12475859055156097
+  ],
+  "default_ci": [
+    -0.03755913672656763,
+    -0.004607562729134377
+  ]
+}

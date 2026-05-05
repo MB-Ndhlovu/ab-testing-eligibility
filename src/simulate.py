@@ -1,66 +1,58 @@
 import pandas as pd
-from src.data_generator import generate_credit_data
-from src.statistical import (
-    two_proportion_ztest,
-    confidence_interval,
-    statistical_power,
-    minimum_detectable_effect
-)
+import numpy as np
+from src.data_generator import generate_credit_data, summarize_by_group
+from src.statistical import two_proportion_ztest, confidence_interval, statistical_power
 
-def summarize_group(df, group):
-    g = df[df['group'] == group]
-    approved = g['approved'].sum()
-    defaulted = g['defaulted'].sum()
-    n = len(g)
-    n_approved = approved
+def run_simulation(seed=42):
+    df = generate_credit_data(n=5000, seed=seed)
+    summary = summarize_by_group(df)
     
-    return {
-        'n': n,
-        'approved': approved,
-        'defaulted': defaulted,
-        'approval_rate': approved / n,
-        'default_rate': defaulted / n_approved if n_approved > 0 else 0,
-        'avg_loan_size': g.loc[g['approved'], 'loan_size'].mean() if n_approved > 0 else 0,
-        'avg_processing_time': g.loc[g['approved'], 'processing_time'].mean() if n_approved > 0 else 0
+    group_a = df[df['group'] == 'A']
+    group_b = df[df['group'] == 'B']
+    
+    n_a = len(group_a)
+    n_b = len(group_b)
+    
+    approved_a = group_a['approved'].mean()
+    approved_b = group_b['approved'].mean()
+    default_a = group_a[group_a['approved'] == 1]['defaulted'].mean()
+    default_b = group_b[group_b['approved'] == 1]['defaulted'].mean()
+    
+    z_approval, p_approval = two_proportion_ztest(n_a, approved_a, n_b, approved_b)
+    ci_approval = confidence_interval(n_a, approved_a, n_b, approved_b)
+    
+    z_default, p_default = two_proportion_ztest(n_a, default_a, n_b, default_b)
+    ci_default = confidence_interval(n_a, default_a, n_b, default_b)
+    
+    power_approval = statistical_power(n_a, approved_a, approved_b)
+    power_default = statistical_power(n_a, default_a, default_b)
+    
+    mde = minimum_detectable_effect(n_a)
+    
+    results = {
+        'n_per_group': n_a,
+        'approval_rate_A': approved_a,
+        'approval_rate_B': approved_b,
+        'default_rate_A': default_a,
+        'default_rate_B': default_b,
+        'approval_z': z_approval,
+        'approval_p_value': p_approval,
+        'approval_ci': ci_approval,
+        'approval_significant': p_approval < 0.05,
+        'default_z': z_default,
+        'default_p_value': p_default,
+        'default_ci': ci_default,
+        'default_significant': p_default < 0.05,
+        'power_approval': power_approval,
+        'power_default': power_default,
+        'mde': mde
     }
+    
+    return results, df, summary
 
-def run_simulation(n=5000, alpha=0.05):
-    df = generate_credit_data(n=n)
-    
-    a = summarize_group(df, 'A')
-    b = summarize_group(df, 'B')
-    
-    z_approval, p_approval, _, _, se_approval = two_proportion_ztest(
-        a['n'], a['approved'], b['n'], b['approved']
-    )
-    ci_approval = confidence_interval(a['n'], a['approval_rate'], b['n'], b['approval_rate'])
-    
-    n_a_approved = a['approved']
-    n_b_approved = b['approved']
-    
-    z_default, p_default, _, _, se_default = two_proportion_ztest(
-        n_a_approved, a['defaulted'], n_b_approved, b['defaulted']
-    )
-    ci_default = confidence_interval(a['n'], a['default_rate'], b['n'], b['default_rate'])
-    
-    power_approval = statistical_power(a['n'], b['n'], a['approval_rate'], b['approval_rate'])
-    mde_approval = minimum_detectable_effect(a['n'], b['n'])
-    
-    return {
-        'group_a': a,
-        'group_b': b,
-        'approval_test': {
-            'z_statistic': z_approval,
-            'p_value': p_approval,
-            'ci_95': ci_approval,
-            'significant': p_approval < alpha,
-            'mde': mde_approval,
-            'power': power_approval
-        },
-        'default_test': {
-            'z_statistic': z_default,
-            'p_value': p_default,
-            'ci_95': ci_default,
-            'significant': p_default < alpha
-        }
-    }
+def minimum_detectable_effect(n, alpha=0.05, power=0.80):
+    from scipy import stats
+    z_crit = stats.norm.ppf(1 - alpha / 2)
+    z_power = stats.norm.ppf(power)
+    mde = (z_crit + z_power) * np.sqrt(0.5 * 0.5 * (2 / n))
+    return mde

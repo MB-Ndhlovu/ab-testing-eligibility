@@ -1,56 +1,70 @@
 import json
 
 def generate_report(results):
-    lines = []
-    lines.append("=" * 60)
-    lines.append("A/B TESTING FRAMEWORK — CREDIT ELIGIBILITY RESULTS")
-    lines.append("=" * 60)
-    
-    lines.append("\n--- GROUP SUMMARIES ---")
-    a = results['group_a']
-    b = results['group_b']
-    
-    lines.append(f"\nGroup A (Control) — n={a['n']}")
-    lines.append(f"  Approval Rate:   {a['approval_rate']:.4f} ({int(a['approved'])}/{a['n']})")
-    lines.append(f"  Default Rate:    {a['default_rate']:.4f}")
-    lines.append(f"  Avg Loan Size:   ${a['avg_loan_size']:,.2f}")
-    lines.append(f"  Avg Process Time: {a['avg_processing_time']:.2f} days")
-    
-    lines.append(f"\nGroup B (Treatment) — n={b['n']}")
-    lines.append(f"  Approval Rate:   {b['approval_rate']:.4f} ({int(b['approved'])}/{b['n']})")
-    lines.append(f"  Default Rate:    {b['default_rate']:.4f}")
-    lines.append(f"  Avg Loan Size:   ${b['avg_loan_size']:,.2f}")
-    lines.append(f"  Avg Process Time: {b['avg_processing_time']:.2f} days")
-    
-    lines.append("\n" + "=" * 60)
-    lines.append("STATISTICAL TESTS (Two-Proportion Z-Test, α=0.05)")
-    lines.append("=" * 60)
-    
-    at = results['approval_test']
-    lines.append("\n[Approval Rate]")
-    lines.append(f"  Z-Statistic:  {at['z_statistic']:.4f}")
-    lines.append(f"  P-Value:      {at['p_value']:.6f}")
-    lines.append(f"  95% CI:       [{at['ci_95'][0]:.4f}, {at['ci_95'][1]:.4f}]")
-    lines.append(f"  MDE:          {at['mde']:.4f}")
-    lines.append(f"  Power:        {at['power']:.4f}")
-    lines.append(f"  Significant: {'YES' if at['significant'] else 'NO'}")
-    
-    dt = results['default_test']
-    lines.append("\n[Default Rate]")
-    lines.append(f"  Z-Statistic:  {dt['z_statistic']:.4f}")
-    lines.append(f"  P-Value:      {dt['p_value']:.6f}")
-    lines.append(f"  95% CI:       [{dt['ci_95'][0]:.4f}, {dt['ci_95'][1]:.4f}]")
-    lines.append(f"  Significant:  {'YES' if dt['significant'] else 'NO'}")
-    
-    lines.append("\n" + "=" * 60)
-    if at['significant'] and dt['significant']:
-        lines.append("CONCLUSION: New model (B) is SIGNIFICANTLY BETTER on both metrics.")
-    elif at['significant']:
-        lines.append("CONCLUSION: New model (B) significantly improves approval rate only.")
-    elif dt['significant']:
-        lines.append("CONCLUSION: New model (B) significantly reduces default rate only.")
+    report = []
+    report.append("=" * 60)
+    report.append("A/B TESTING RESULTS: CREDIT ELIGIBILITY MODEL")
+    report.append("=" * 60)
+    report.append("")
+    report.append(f"Sample Size per Group: {results['n_per_group']}")
+    report.append("")
+    report.append("-" * 60)
+    report.append("APPROVAL RATE ANALYSIS")
+    report.append("-" * 60)
+    report.append(f"  Control (A):      {results['approval_rate_A']:.4f} ({results['approval_rate_A']*100:.2f}%)")
+    report.append(f"  Treatment (B):   {results['approval_rate_B']:.4f} ({results['approval_rate_B']*100:.2f}%)")
+    report.append(f"  Difference:       {results['approval_rate_B'] - results['approval_rate_A']:.4f}")
+    report.append(f"  Z-statistic:      {results['approval_z']:.4f}")
+    report.append(f"  P-value:          {results['approval_p_value']:.6f}")
+    report.append(f"  95% CI:           [{results['approval_ci'][0]:.4f}, {results['approval_ci'][1]:.4f}]")
+    report.append(f"  Significant:      {'YES' if results['approval_significant'] else 'NO'} (alpha=0.05)")
+    report.append(f"  Power:            {results['power_approval']:.4f}")
+    report.append("")
+    report.append("-" * 60)
+    report.append("DEFAULT RATE ANALYSIS")
+    report.append("-" * 60)
+    report.append(f"  Control (A):      {results['default_rate_A']:.4f} ({results['default_rate_A']*100:.2f}%)")
+    report.append(f"  Treatment (B):   {results['default_rate_B']:.4f} ({results['default_rate_B']*100:.2f}%)")
+    report.append(f"  Difference:       {results['default_rate_B'] - results['default_rate_A']:.4f}")
+    report.append(f"  Z-statistic:      {results['default_z']:.4f}")
+    report.append(f"  P-value:          {results['default_p_value']:.6f}")
+    report.append(f"  95% CI:           [{results['default_ci'][0]:.4f}, {results['default_ci'][1]:.4f}]")
+    report.append(f"  Significant:      {'YES' if results['default_significant'] else 'NO'} (alpha=0.05)")
+    report.append(f"  Power:            {results['power_default']:.4f}")
+    report.append("")
+    report.append("-" * 60)
+    report.append("POWER ANALYSIS")
+    report.append("-" * 60)
+    report.append(f"  Min Detectable Effect (80% power): {results['mde']:.4f}")
+    report.append("")
+    report.append("=" * 60)
+    report.append("CONCLUSION")
+    report.append("=" * 60)
+    if results['approval_significant'] and results['default_significant']:
+        report.append("  The new credit model (B) significantly outperforms the current")
+        report.append("  model (A) on BOTH metrics. RECOMMEND: Deploy new model.")
+    elif results['approval_significant']:
+        report.append("  The new model shows significantly higher approval rates but")
+        report.append("  no significant difference in default rates.")
+    elif results['default_significant']:
+        report.append("  The new model shows significantly lower default rates but")
+        report.append("  no significant difference in approval rates.")
     else:
-        lines.append("CONCLUSION: No statistically significant difference detected.")
-    lines.append("=" * 60)
+        report.append("  No statistically significant differences detected between")
+        report.append("  the two models. MORE DATA may be needed.")
+    report.append("")
     
-    return "\n".join(lines)
+    return "\n".join(report)
+
+def save_results_json(results, filepath):
+    import numpy as np
+    save_data = {k: v for k, v in results.items() if k not in ['approval_ci', 'default_ci']}
+    save_data['approval_ci'] = list(results['approval_ci'])
+    save_data['default_ci'] = list(results['default_ci'])
+    for key, value in save_data.items():
+        if isinstance(value, (np.bool_, np.integer)):
+            save_data[key] = bool(value) if isinstance(value, np.bool_) else int(value)
+        elif isinstance(value, (np.floating,)):
+            save_data[key] = float(value)
+    with open(filepath, 'w') as f:
+        json.dump(save_data, f, indent=2)

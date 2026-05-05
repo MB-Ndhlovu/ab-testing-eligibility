@@ -2,25 +2,34 @@
 
 ## Business Problem
 
-A lender wants to test a new credit eligibility model against their current model. The new model (Group B) should:
-- Approve more applicants (higher approval rate)
-- Reduce defaults (lower default rate)
+A lender currently uses a credit eligibility model (Group A - Control) and wants to test a new model (Group B - Treatment) that they believe will:
+- Increase approval rates (more loans approved)
+- Decrease default rates (fewer bad loans)
 
-We run a controlled A/B experiment to determine if the new model is statistically superior.
+The question: Does the new model actually perform better, or is any observed difference due to random chance?
 
 ## Methodology
 
-1. **Data Generation**: Simulate 5,000 loan applications split evenly between control (A) and treatment (B)
+1. **Data Generation**: Simulate 5,000 loan applications split evenly between Control (A) and Treatment (B)
 2. **Metrics Tracked**:
-   - Approval Rate: proportion of applicants approved
-   - Default Rate: proportion of approved loans that go into default
-   - Average Loan Size
-   - Processing Time
-3. **Statistical Test**: Two-proportion z-test for approval and default rates
-4. **Reporting**: 95% confidence intervals, p-values, and statistical conclusions
+   - Approval Rate: Proportion of applications approved
+   - Default Rate: Proportion of approved loans that go into default
+   - Average Loan Size: Mean approved loan amount
+   - Processing Time: Average time to process applications
+3. **Statistical Testing**: Two-proportion z-test for approval and default rates
+4. **Confidence Intervals**: 95% CI for the difference in proportions
+5. **Power Analysis**: Minimum detectable effect at 80% power
 
-## Hypotheses
+## Expected Results
 
-- **Approval Rate**: H₀: p_B ≤ p_A vs H₁: p_B > p_A (one-sided)
-- **Default Rate**: H₀: p_B ≥ p_A vs H₁: p_B < p_A (one-sided)
-- **Significance Level**: α = 0.05
+- Group A (Control): ~62% approval, ~11% default
+- Group B (Treatment): ~71% approval, ~9% default
+- Treatment should show statistically significant improvement
+
+## Files
+
+- `src/data_generator.py` - Synthetic data generation
+- `src/statistical.py` - Statistical tests and power analysis
+- `src/simulate.py` - Experiment simulation
+- `src/report.py` - Results reporting
+- `run_pipeline.py` - End-to-end pipeline execution
