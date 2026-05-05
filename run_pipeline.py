@@ -1,25 +1,23 @@
-"""Execute the full A/B testing pipeline."""
+"""
+End-to-end A/B test pipeline for credit eligibility.
+"""
 
-import json
-from pathlib import Path
-
-from src.simulate import run_simulation
+import os
+from src.simulate import run_experiment
 from src.report import generate_report, results_to_json
 
-
 def main():
-    print("Running A/B Test Pipeline...\n")
-    results = run_simulation(n_total=5000, seed=42)
+    print("Running A/B test pipeline for credit eligibility...\n")
 
+    results = run_experiment(n=5000, alpha=0.05, seed=42)
     report = generate_report(results)
     print(report)
 
-    output_path = Path("/home/workspace/Projects/ab-testing-eligibility/results.json")
-    output_path.write_text(results_to_json(results))
-    print(f"\nResults saved to: {output_path}")
-
-    return results
-
+    # Save JSON
+    out_dir = os.path.dirname(os.path.abspath(__file__))
+    json_path = os.path.join(out_dir, "results.json")
+    results_to_json(results, json_path)
+    print(f"\n[Results saved to results.json]\n")
 
 if __name__ == "__main__":
     main()

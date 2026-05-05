@@ -1,51 +1,55 @@
 {
-  "n_per_group": 2500,
-  "stats_A": {
-    "n": 2500.0,
-    "approval_rate": 0.626,
-    "default_rate": 0.10287539936102237,
-    "avg_loan_size": 17985.640946313186,
-    "avg_processing_time": 2.563838336663591
+  "sample_sizes": {
+    "group_a": 2500,
+    "group_b": 2500
   },
-  "stats_B": {
-    "n": 2500.0,
-    "approval_rate": 0.7192,
-    "default_rate": 0.09343715239154617,
-    "avg_loan_size": 19244.829784608002,
-    "avg_processing_time": 2.3163396239005456
+  "summary": {
+    "Group A (Control)": {
+      "n": 2500,
+      "approval_rate": 0.6188,
+      "default_rate": 0.18487394957983194,
+      "avg_loan_size": 17039.758435337917,
+      "avg_processing_time": 3.8851361913855227
+    },
+    "Group B (Treatment)": {
+      "n": 2500,
+      "approval_rate": 0.702,
+      "default_rate": 0.13105413105413105,
+      "avg_loan_size": 17034.00969543551,
+      "avg_processing_time": 3.467499808635775
+    }
   },
-  "approval_test": {
-    "z_stat": 7.021875901093119,
-    "p_value": 2.1891377599558837e-12,
+  "approval_rate": {
+    "test": {
+      "z_stat": 6.211420909860123,
+      "p_value": 5.250761730311395e-10,
+      "diff": 0.08319999999999994,
+      "pooled_p": 0.6604,
+      "se": 0.01339468073527697
+    },
     "ci": [
-      0.06718577731476333,
-      0.11921422268523657
+      0.0570483933491716,
+      0.10935160665082828
     ],
-    "significant": true,
-    "p_pooled": 0.6726
+    "power": 0.9999876568982505,
+    "mde": 0.03845541320934018,
+    "significant": 1.0
   },
-  "default_test": {
-    "z_stat": 0.3992823928724355,
-    "p_value": 0.655157430422953,
+  "default_rate": {
+    "test": {
+      "z_stat": -2.026296521057049,
+      "p_value": 0.04273440755994753,
+      "diff": -0.021307668366491894,
+      "pooled_p": 0.10115081768625075,
+      "se": 0.010515572693860432
+    },
     "ci": [
-      -0.008734668790004804,
-      0.014334668790004798
+      -0.04202586527283387,
+      -0.0005894714601499193
     ],
-    "significant": false,
-    "p_pooled": 0.0658
+    "power": 0.4648720819381845,
+    "mde": 0.03200828614679472,
+    "significant": 1.0
   },
-  "approval_mde": {
-    "mde": 0.038341738290533944,
-    "power_at_mde": 0.8,
-    "n_control": 2500.0,
-    "n_treatment": 2500.0,
-    "alpha": 0.05
-  },
-  "default_mde": {
-    "mde": 0.024073042403291483,
-    "power_at_mde": 0.8,
-    "n_control": 2500.0,
-    "n_treatment": 2500.0,
-    "alpha": 0.05
-  }
+  "alpha": 0.05
 }
