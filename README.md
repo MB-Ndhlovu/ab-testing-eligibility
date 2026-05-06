@@ -2,40 +2,29 @@
 
 ## Business Problem
 
-A lender currently uses a credit eligibility model (Group A — control). They want to test a new model (Group B — treatment) that is expected to:
-- Increase approval rates (approve more borrowers responsibly)
-- Decrease default rates (better risk selection)
+A lender wants to evaluate whether a new credit eligibility model (treatment group B) outperforms their current model (control group A). The key metrics are:
 
-The goal is to run a statistically rigorous A/B experiment to determine whether the new model genuinely outperforms the current one, or if observed differences are just noise.
+- **Approval Rate**: Higher is better — more loans approved
+- **Default Rate**: Lower is better — fewer loans that go bad
 
 ## Methodology
 
-### Data Generation
-- Synthetic dataset of 5,000 loan applications (2,500 per group)
-- **Group A (Control)**: Existing eligibility model
-  - Target approval rate: ~62%
-  - Target default rate: ~11%
-- **Group B (Treatment)**: New eligibility model
-  - Target approval rate: ~71%
-  - Target default rate: ~9%
-- Realistic noise added so results are not perfectly clean
+1. **Synthetic Data Generation**: Simulate 5,000 loan applications split evenly between control (A) and treatment (B) groups
+2. **Statistical Testing**: Two-proportion z-test for each metric
+3. **Confidence Intervals**: 95% CI for the difference between groups
+4. **Power Analysis**: Minimum detectable effect at 80% power
 
-### Metrics Tracked per Group
-| Metric | Description |
-|---|---|
-| Approval Rate | Proportion of applications approved |
-| Default Rate | Proportion of approved loans that defaulted |
-| Avg Loan Size | Mean approved loan amount |
-| Processing Time | Mean days to process applications |
+## Expected Outcomes
 
-### Statistical Testing
-- **Two-Proportion Z-Test** for approval_rate and default_rate
-- **95% Confidence Interval** for the difference between groups
-- **P-value** against α = 0.05
-- **Statistical Power** calculation
-- **Minimum Detectable Effect (MDE)** estimation
+| Metric | Group A (Control) | Group B (Treatment) | Expected Effect |
+|--------|-------------------|---------------------|------------------|
+| Approval Rate | ~62% | ~71% | +9 pp |
+| Default Rate | ~11% | ~9% | -2 pp |
 
-### Decision Rule
-At α = 0.05:
-- **p < 0.05**: Reject null hypothesis → statistically significant difference
-- **p ≥ 0.05**: Fail to reject null hypothesis → no statistically significant difference
+## Files
+
+- `src/data_generator.py` — Generate synthetic loan data
+- `src/statistical.py` — Two-proportion z-test and power analysis
+- `src/simulate.py` — Run experiment simulation
+- `src/report.py` — Generate human-readable summary
+- `run_pipeline.py` — Execute full pipeline

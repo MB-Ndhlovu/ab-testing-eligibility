@@ -1,44 +1,69 @@
 """
-Experiment simulation: generate data and run statistical analysis.
+Run A/B test experiment simulation.
 """
-import json
-from src.data_generator import generate_data, summarize
-from src.statistical import run_analysis
 
-def run_experiment():
-    """
-    Generate data, compute summary stats, run z-tests.
-    Returns (summary_df, analysis_results, raw_dataframe).
-    """
-    df = generate_data()
-    summary = summarize(df)
+import numpy as np
+from .data_generator import generate_data, compute_summary_stats
+from .statistical import two_proportion_ztest, confidence_interval_diff, power_analysis
 
-    n_A = int((df.group == "A").sum())
-    n_B = int((df.group == "B").sum())
-
-    p_approval_A = float(df[df.group == "A"]["approved"].mean())
-    p_approval_B = float(df[df.group == "B"]["approved"].mean())
-
-    # Default rate is computed only on approved loans
-    approved_A = df[df.group == "A"]["approved"].sum()
-    approved_B = df[df.group == "B"]["approved"].sum()
-    defaults_A = float(df[df.group == "A"]["defaulted"].sum())
-    defaults_B = float(df[df.group == "B"]["defaulted"].sum())
-
-    p_default_A = defaults_A / approved_A if approved_A > 0 else 0.0
-    p_default_B = defaults_B / approved_B if approved_B > 0 else 0.0
-
-    analysis = run_analysis(
-        n_A, p_approval_A, n_B, p_approval_B,
-        n_A, p_default_A, n_B, p_default_B
-    )
-
-    return summary, analysis, df
-
-def save_results(summary, analysis, path="results.json"):
-    output = {
-        "summary": summary.to_dict(orient="index"),
-        "analysis": analysis,
+def run_simulation(seed=42, alpha=0.05):
+    """Run full A/B test simulation."""
+    data = generate_data(n=5000, seed=seed)
+    stats_summary = compute_summary_stats(data)
+    
+    n_a = stats_summary['group_a']['n']
+    n_b = stats_summary['group_b']['n']
+    p_approved_a = stats_summary['group_a']['approval_rate']
+    p_approved_b = stats_summary['group_b']['approval_rate']
+    p_default_a = stats_summary['group_a']['default_rate']
+    p_default_b = stats_summary['group_b']['default_rate']
+    
+    # Test approval rate
+    z_approval, p_approval = two_proportion_ztest(n_a, p_approved_a, n_b, p_approved_b)
+    ci_approval = confidence_interval_diff(n_a, p_approved_a, n_b, p_approved_b, alpha)
+    
+    # Test default rate
+    z_default, p_default = two_proportion_ztest(n_a, p_default_a, n_b, p_default_b)
+    ci_default = confidence_interval_diff(n_a, p_default_a, n_b, p_default_b, alpha)
+    
+    # Power analysis
+    mde_approval = abs(p_approved_b - p_approved_a)
+    mde_default = abs(p_default_b - p_default_a)
+    n_required_approval = power_analysis(p_approved_a, p_approved_b, alpha)
+    n_required_default = power_analysis(p_default_a, p_default_b, alpha)
+    
+    results = {
+        'sample_size': {'group_a': n_a, 'group_b': n_b},
+        'approval_rate': {
+            'group_a': round(p_approved_a, 4),
+            'group_b': round(p_approved_b, 4),
+            'diff': round(p_approved_b - p_approved_a, 4),
+            'z_statistic': round(z_approval, 4),
+            'p_value': round(p_approval, 6),
+            'ci_95': (round(ci_approval[0], 4), round(ci_approval[1], 4)),
+            'significant': p_approval < alpha,
+            'mde_observed': round(mde_approval, 4),
+            'n_required': n_required_approval,
+        },
+        'default_rate': {
+            'group_a': round(p_default_a, 4),
+            'group_b': round(p_default_b, 4),
+            'diff': round(p_default_b - p_default_a, 4),
+            'z_statistic': round(z_default, 4),
+            'p_value': round(p_default, 6),
+            'ci_95': (round(ci_default[0], 4), round(ci_default[1], 4)),
+            'significant': p_default < alpha,
+            'mde_observed': round(mde_default, 4),
+            'n_required': n_required_default,
+        },
+        'avg_loan_size': {
+            'group_a': round(stats_summary['group_a']['avg_loan_size'], 2),
+            'group_b': round(stats_summary['group_b']['avg_loan_size'], 2),
+        },
+        'avg_processing_time': {
+            'group_a': round(stats_summary['group_a']['avg_processing_time'], 2),
+            'group_b': round(stats_summary['group_b']['avg_processing_time'], 2),
+        }
     }
-    with open(path, "w") as f:
-        json.dump(output, f, indent=2, default=float)
+    
+    return results

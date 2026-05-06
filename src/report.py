@@ -1,86 +1,61 @@
 """
-Generate a human-readable summary report of the A/B test results.
+Generate readable summary report for A/B test results.
 """
-from src.statistical import run_analysis
 
-ALPHA = 0.05
-
-def format_metric_result(label, r):
-    sig = "✅ SIGNIFICANT" if r["significant"] else "❌ NOT SIGNIFICANT"
-    return (
-        f"  {label}\n"
-        f"    Group A: {r['group_A']:.2%}  |  Group B: {r['group_B']:.2%}\n"
-        f"    Difference: {r['difference']:+.2%}\n"
-        f"    Z-statistic: {r['z_statistic']:.4f}   P-value: {r['p_value']:.4f}\n"
-        f"    95% CI for difference: [{r['ci_lower']:.2%}, {r['ci_upper']:.2%}]\n"
-        f"    Power: {r['power']:.2%}   MDE: {r['mde']:.2%}\n"
-        f"    Conclusion: {sig} (at α={ALPHA})\n"
-    )
-
-def generate_report(summary, analysis):
-    lines = [
-        "=" * 60,
-        "   A/B TESTING FRAMEWORK — CREDIT ELIGIBILITY",
-        "   Experiment Report",
-        "=" * 60,
-        "",
-        "▶ SAMPLE SUMMARY",
-        "-" * 40,
-    ]
-
-    for group in ["A", "B"]:
-        row = summary.loc[group]
-        lines.append(f"  Group {group} ({int(row['applicants'])} applicants)")
-        lines.append(f"    Approval Rate:      {row['approval_rate']:.2%}")
-        lines.append(f"    Default Rate:       {row['default_rate']:.2%}")
-        lines.append(f"    Avg Loan Size:      ${row['avg_loan_size']:,.2f}")
-        lines.append(f"    Avg Processing:    {row['avg_processing_days']:.1f} days")
-        lines.append("")
-
-    lines += [
-        "▶ STATISTICAL RESULTS",
-        "-" * 40,
-    ]
-
-    lines.append(format_metric_result("Approval Rate", analysis["approval_rate"]))
-    lines.append(format_metric_result("Default Rate",  analysis["default_rate"]))
-
-    # Overall recommendation
-    app_sig  = analysis["approval_rate"]["significant"]
-    def_sig  = analysis["default_rate"]["significant"]
-    app_diff = analysis["approval_rate"]["difference"]
-    def_diff = analysis["default_rate"]["difference"]
-
-    lines += [
-        "▶ OVERALL RECOMMENDATION",
-        "-" * 40,
-    ]
-
-    if app_sig and def_sig:
-        if app_diff > 0 and def_diff < 0:
-            lines.append("  ✅ Deploy the new model (Group B). It significantly")
-            lines.append("     increases approvals AND reduces defaults.")
-        elif app_diff > 0:
-            lines.append("  ⚠️  Partial success. Approval rate improved significantly")
-            lines.append("     but default rate change was not significant.")
-        elif def_diff < 0:
-            lines.append("  ⚠️  Partial success. Default rate improved significantly")
-            lines.append("     but approval rate change was not significant.")
-        else:
-            lines.append("  ⚠️  Both metrics showed significant differences.")
-            lines.append("     Review direction of changes before deploying.")
-    elif app_sig:
-        lines.append("  ⚠️  Approval rate improved significantly, but default")
-        lines.append("     rate was not significantly different. Monitor risk.")
-    elif def_sig:
-        lines.append("  ⚠️  Default rate improved significantly, but approval")
-        lines.append("     rate was not significantly different. Consider retest.")
-    else:
-        lines.append("  ❌ Neither metric showed a statistically significant")
-        lines.append("     difference at α=0.05. Insufficient evidence to")
-        lines.append("     justify deploying the new model.")
-
+def generate_report(results):
+    lines = []
+    lines.append("=" * 60)
+    lines.append("  A/B TESTING FRAMEWORK — CREDIT ELIGIBILITY REPORT")
+    lines.append("=" * 60)
+    lines.append("")
+    lines.append(f"Sample Size: Control (A) = {results['sample_size']['group_a']}, Treatment (B) = {results['sample_size']['group_b']}")
+    lines.append("")
+    lines.append("-" * 60)
+    lines.append("  APPROVAL RATE")
+    lines.append("-" * 60)
+    lines.append(f"  Group A (Control):  {results['approval_rate']['group_a']:.2%}")
+    lines.append(f"  Group B (Treatment): {results['approval_rate']['group_b']:.2%}")
+    lines.append(f"  Difference:          {results['approval_rate']['diff']:+.2%}")
+    lines.append(f"  Z-statistic:         {results['approval_rate']['z_statistic']:.4f}")
+    lines.append(f"  P-value:             {results['approval_rate']['p_value']:.6f}")
+    lines.append(f"  95% CI:              [{results['approval_rate']['ci_95'][0]:.4f}, {results['approval_rate']['ci_95'][1]:.4f}]")
+    sig_approval = "SIGNIFICANT" if results['approval_rate']['significant'] else "NOT SIGNIFICANT"
+    lines.append(f"  Conclusion (α=0.05):  {sig_approval}")
+    lines.append("")
+    lines.append("-" * 60)
+    lines.append("  DEFAULT RATE")
+    lines.append("-" * 60)
+    lines.append(f"  Group A (Control):  {results['default_rate']['group_a']:.2%}")
+    lines.append(f"  Group B (Treatment): {results['default_rate']['group_b']:.2%}")
+    lines.append(f"  Difference:          {results['default_rate']['diff']:+.2%}")
+    lines.append(f"  Z-statistic:         {results['default_rate']['z_statistic']:.4f}")
+    lines.append(f"  P-value:             {results['default_rate']['p_value']:.6f}")
+    lines.append(f"  95% CI:              [{results['default_rate']['ci_95'][0]:.4f}, {results['default_rate']['ci_95'][1]:.4f}]")
+    sig_default = "SIGNIFICANT" if results['default_rate']['significant'] else "NOT SIGNIFICANT"
+    lines.append(f"  Conclusion (α=0.05):  {sig_default}")
+    lines.append("")
+    lines.append("-" * 60)
+    lines.append("  ADDITIONAL METRICS")
+    lines.append("-" * 60)
+    lines.append(f"  Avg Loan Size (A):      R{results['avg_loan_size']['group_a']:,.2f}")
+    lines.append(f"  Avg Loan Size (B):      R{results['avg_loan_size']['group_b']:,.2f}")
+    lines.append(f"  Avg Processing Time (A): {results['avg_processing_time']['group_a']:.2f} hours")
+    lines.append(f"  Avg Processing Time (B): {results['avg_processing_time']['group_b']:.2f} hours")
     lines.append("")
     lines.append("=" * 60)
-
+    lines.append("  OVERALL RECOMMENDATION")
+    lines.append("=" * 60)
+    
+    if results['approval_rate']['significant'] and results['default_rate']['significant']:
+        rec = "ADOPT new eligibility model — both approval rate increased and default rate decreased significantly."
+    elif results['approval_rate']['significant']:
+        rec = "CAUTION — approval rate improved but default rate not significantly changed. Review risk."
+    elif results['default_rate']['significant']:
+        rec = "CAUTION — default rate decreased but approval rate not significantly changed. Review impact on access."
+    else:
+        rec = "HOLD — no statistically significant improvement observed. Need larger sample or model refinement."
+    
+    lines.append(f"  {rec}")
+    lines.append("=" * 60)
+    
     return "\n".join(lines)
