@@ -1,44 +1,52 @@
 {
-  "metrics": {
-    "approval_rate": {
-      "group_A": 0.6196,
-      "group_B": 0.7156,
-      "difference": 0.096,
-      "z_statistic": 7.2051,
-      "p_value": 0.0,
-      "ci_lower": 0.07,
-      "ci_upper": 0.122,
-      "significant_at_0.05": true,
-      "power": 1.0,
-      "mde": 0.0352
+  "data": {
+    "group_a": {
+      "n": 2500,
+      "approved": 1572,
+      "approval_rate": 0.6288,
+      "defaults": 155,
+      "default_rate": 0.09860050890585242,
+      "avg_loan_size": 20824.39366345926,
+      "avg_processing_time": 4.674456917461542
     },
-    "default_rate": {
-      "group_A": 0.1091,
-      "group_B": 0.0889,
-      "difference": -0.0202,
-      "z_statistic": 2.3945,
-      "p_value": 0.991678,
-      "ci_lower": -0.0368,
-      "ci_upper": -0.0037,
-      "significant_at_0.05": false,
-      "power": 0.7733,
-      "mde": 0.0352
+    "group_b": {
+      "n": 2500,
+      "approved": 1772,
+      "approval_rate": 0.7088,
+      "defaults": 165,
+      "default_rate": 0.09311512415349887,
+      "avg_loan_size": 21330.366973939537,
+      "avg_processing_time": 4.349552054022973
     }
   },
-  "groups": {
-    "A": {
-      "n": 2500,
-      "approval_rate": 0.6196,
-      "default_rate": 0.1091026468689477,
-      "avg_loan_size": 15740.723434473855,
-      "avg_processing_time": 47.018919999999994
+  "stats": {
+    "approval_rate": {
+      "metric": "approval_rate",
+      "control_rate": 0.6288,
+      "treatment_rate": 0.7088,
+      "z": 6.00968483865992,
+      "p_value": 1.8588433015054306e-09,
+      "ci_95": [
+        0.054003184181196304,
+        0.10599681581880362
+      ],
+      "diff": 0.07999999999999996,
+      "mde": 0.03962039811599345,
+      "significant": true
     },
-    "B": {
-      "n": 2500,
-      "approval_rate": 0.7156,
-      "default_rate": 0.0888764673001677,
-      "avg_loan_size": 15726.687780883176,
-      "avg_processing_time": 49.60536
+    "default_rate": {
+      "metric": "default_rate",
+      "control_rate": 0.09860050890585242,
+      "treatment_rate": 0.09311512415349887,
+      "z": -0.6587641689590604,
+      "p_value": 0.5100472195577661,
+      "ci_95": [
+        -0.021805166601925434,
+        0.010834397097218333
+      ],
+      "diff": -0.00548538475235355,
+      "mde": 0.03962039811599345,
+      "significant": false
     }
   }
 }

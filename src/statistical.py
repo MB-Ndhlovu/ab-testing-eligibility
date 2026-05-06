@@ -1,55 +1,58 @@
+"""Statistical analysis: two-proportion z-test, confidence intervals, power."""
+
 import numpy as np
 from scipy import stats
 
-def two_proportion_ztest(n1, p1, n2, p2, alternative='two-sided'):
-    p_pool = (p1 * n1 + p2 * n2) / (n1 + n2)
-    se = np.sqrt(p_pool * (1 - p_pool) * (1/n1 + 1/n2))
-    if se == 0:
-        return 0.0, 1.0
-    
-    if alternative == 'larger':
-        z = (p2 - p1) / se
-        p_value = 1 - stats.norm.cdf(z)
-    elif alternative == 'smaller':
-        z = (p1 - p2) / se
-        p_value = stats.norm.cdf(z)
-    else:
-        z = (p1 - p2) / se
-        p_value = 2 * (1 - stats.norm.cdf(abs(z)))
-    
-    return float(z), float(p_value)
 
-def confidence_interval_diff(n1, p1, n2, p2, confidence=0.95):
-    se = np.sqrt(p1 * (1 - p1) / n1 + p2 * (1 - p2) / n2)
-    if se == 0:
-        return (p1 - p2, p1 - p2)
-    z = stats.norm.ppf(1 - (1 - confidence) / 2)
-    diff = p2 - p1
-    return (float(diff - z * se), float(diff + z * se))
+def two_proportion_ztest(n_a, x_a, n_b, x_b):
+    """Two-proportion z-test comparing treatment vs control.
 
-def statistical_power(n, p1, p2, alpha=0.05):
-    p_pool = (p1 + p2) / 2
-    se = np.sqrt(p_pool * (1 - p_pool) * (2 / n))
-    if se == 0:
-        return 0.0
-    z_crit = stats.norm.ppf(1 - alpha)
-    z_power = (abs(p2 - p1) / se) - z_crit
-    power = stats.norm.cdf(z_power)
-    return float(power)
+    Returns z-statistic, two-tailed p-value, and 95% CI for (p_b - p_a).
+    """
+    p_a = x_a / n_a
+    p_b = x_b / n_b
+    diff = p_b - p_a
 
-def minimum_detectable_effect(n, alpha=0.05, power=0.8):
-    z_alpha = stats.norm.ppf(1 - alpha)
+    p_pool = (x_a + x_b) / (n_a + n_b)
+    se = np.sqrt(p_pool * (1 - p_pool) * (1/n_a + 1/n_b))
+    z = diff / se if se > 0 else 0
+    p_value = 2 * (1 - stats.norm.cdf(abs(z)))
+
+    se_diff = np.sqrt(p_a * (1 - p_a) / n_a + p_b * (1 - p_b) / n_b)
+    ci_lower = diff - 1.96 * se_diff
+    ci_upper = diff + 1.96 * se_diff
+
+    return {
+        "z": float(z),
+        "p_value": float(p_value),
+        "ci_95": (float(ci_lower), float(ci_upper)),
+        "diff": float(diff),
+    }
+
+
+def power_and_mde(n_a, n_b, alpha=0.05, power=0.80):
+    """Compute minimum detectable effect (MDE) at given power and alpha."""
+    z_alpha = stats.norm.ppf(1 - alpha / 2)
     z_beta = stats.norm.ppf(power)
-    p = 0.5
-    se = np.sqrt(2 * p * (1 - p) / n)
+    pooled_p = 0.5
+    se = np.sqrt(pooled_p * (1 - pooled_p) * (1/n_a + 1/n_b))
     mde = (z_alpha + z_beta) * se
     return float(mde)
 
-if __name__ == '__main__':
-    n1, p1 = 2500, 0.62
-    n2, p2 = 2500, 0.71
-    z, p = two_proportion_ztest(n1, p1, n2, p2, alternative='larger')
-    ci = confidence_interval_diff(n1, p1, n2, p2)
-    print(f"z={z:.3f}, p={p:.4f}, 95% CI={ci}")
-    print(f"Power: {statistical_power(2500, 0.62, 0.71):.3f}")
-    print(f"MDE: {minimum_detectable_effect(2500):.4f}")
+
+def analyze_metric(label, n_a, rate_a, n_b, rate_b, alpha=0.05):
+    """Run full statistical analysis for one rate metric."""
+    result = two_proportion_ztest(n_a, rate_a * n_a, n_b, rate_b * n_b)
+    mde = power_and_mde(n_a, n_b, alpha=alpha)
+    significant = result["p_value"] < alpha
+    return {
+        "metric": label,
+        "control_rate": rate_a,
+        "treatment_rate": rate_b,
+        "z": result["z"],
+        "p_value": result["p_value"],
+        "ci_95": result["ci_95"],
+        "diff": result["diff"],
+        "mde": mde,
+        "significant": significant,
+    }
