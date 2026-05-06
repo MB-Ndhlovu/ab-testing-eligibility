@@ -2,28 +2,40 @@
 
 ## Business Problem
 
-A lender wants to evaluate a new credit eligibility model against the current model before full deployment. The new model (Group B) is expected to improve approval rates while reducing default rates compared to the current model (Group A).
+A lender currently uses a credit eligibility model (Group A — control). They want to test a new model (Group B — treatment) that is expected to:
+- Increase approval rates (approve more borrowers responsibly)
+- Decrease default rates (better risk selection)
+
+The goal is to run a statistically rigorous A/B experiment to determine whether the new model genuinely outperforms the current one, or if observed differences are just noise.
 
 ## Methodology
 
-### Experiment Design
-- **Control Group (A)**: Current eligibility model
-- **Treatment Group (B)**: New eligibility model
-- **Sample Size**: 5,000 applicants (2,500 per group)
+### Data Generation
+- Synthetic dataset of 5,000 loan applications (2,500 per group)
+- **Group A (Control)**: Existing eligibility model
+  - Target approval rate: ~62%
+  - Target default rate: ~11%
+- **Group B (Treatment)**: New eligibility model
+  - Target approval rate: ~71%
+  - Target default rate: ~9%
+- Realistic noise added so results are not perfectly clean
 
-### Key Metrics
-1. **Approval Rate**: Proportion of applicants approved
-2. **Default Rate**: Proportion of approved loans that default
-3. **Average Loan Size**: Mean loan amount approved
-4. **Processing Time**: Average time to process applications
+### Metrics Tracked per Group
+| Metric | Description |
+|---|---|
+| Approval Rate | Proportion of applications approved |
+| Default Rate | Proportion of approved loans that defaulted |
+| Avg Loan Size | Mean approved loan amount |
+| Processing Time | Mean days to process applications |
 
-### Statistical Approach
-- Two-proportion z-test for approval and default rates
-- 95% Confidence Intervals for treatment effects
-- Statistical significance at α = 0.05
-- Power analysis for minimum detectable effects
+### Statistical Testing
+- **Two-Proportion Z-Test** for approval_rate and default_rate
+- **95% Confidence Interval** for the difference between groups
+- **P-value** against α = 0.05
+- **Statistical Power** calculation
+- **Minimum Detectable Effect (MDE)** estimation
 
-## Expected Outcomes
-- Group A (Control): ~62% approval rate, ~11% default rate
-- Group B (Treatment): ~71% approval rate, ~9% default rate
-- Realistic noise added to avoid perfectly clean results
+### Decision Rule
+At α = 0.05:
+- **p < 0.05**: Reject null hypothesis → statistically significant difference
+- **p ≥ 0.05**: Fail to reject null hypothesis → no statistically significant difference

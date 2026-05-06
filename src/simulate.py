@@ -1,66 +1,44 @@
-from src.data_generator import generate_experiment_data, compute_group_metrics
-from src.statistical import (
-    two_proportion_ztest,
-    confidence_interval_diff,
-    statistical_power,
-    minimum_detectable_effect,
-    test_significance
-)
+"""
+Experiment simulation: generate data and run statistical analysis.
+"""
+import json
+from src.data_generator import generate_data, summarize
+from src.statistical import run_analysis
 
+def run_experiment():
+    """
+    Generate data, compute summary stats, run z-tests.
+    Returns (summary_df, analysis_results, raw_dataframe).
+    """
+    df = generate_data()
+    summary = summarize(df)
 
-def run_simulation(seed=42, alpha=0.05):
-    df = generate_experiment_data(seed=seed)
+    n_A = int((df.group == "A").sum())
+    n_B = int((df.group == "B").sum())
 
-    metrics_a = compute_group_metrics(df, "A")
-    metrics_b = compute_group_metrics(df, "B")
+    p_approval_A = float(df[df.group == "A"]["approved"].mean())
+    p_approval_B = float(df[df.group == "B"]["approved"].mean())
 
-    n_a = metrics_a["n"]
-    n_b = metrics_b["n"]
-    ar_a = metrics_a["approval_rate"]
-    ar_b = metrics_b["approval_rate"]
-    dr_a = metrics_a["default_rate"]
-    dr_b = metrics_b["default_rate"]
+    # Default rate is computed only on approved loans
+    approved_A = df[df.group == "A"]["approved"].sum()
+    approved_B = df[df.group == "B"]["approved"].sum()
+    defaults_A = float(df[df.group == "A"]["defaulted"].sum())
+    defaults_B = float(df[df.group == "B"]["defaulted"].sum())
 
-    ar_ztest = two_proportion_ztest(n_a, ar_a, n_b, ar_b)
-    ar_ci = confidence_interval_diff(n_a, ar_a, n_b, ar_b)
-    ar_significant = test_significance(ar_ztest["p_value"], alpha)
+    p_default_A = defaults_A / approved_A if approved_A > 0 else 0.0
+    p_default_B = defaults_B / approved_B if approved_B > 0 else 0.0
 
-    dr_ztest = two_proportion_ztest(n_a, dr_a, n_b, dr_b)
-    dr_ci = confidence_interval_diff(n_a, dr_a, n_b, dr_b)
-    dr_significant = test_significance(dr_ztest["p_value"], alpha)
+    analysis = run_analysis(
+        n_A, p_approval_A, n_B, p_approval_B,
+        n_A, p_default_A, n_B, p_default_B
+    )
 
-    ar_power = statistical_power(n_a, n_b, ar_a, ar_b, alpha)
-    dr_power = statistical_power(n_a, n_b, dr_a, dr_b, alpha)
+    return summary, analysis, df
 
-    ar_mde = minimum_detectable_effect(n_a, n_b, ar_a, alpha)
-    dr_mde = minimum_detectable_effect(n_a, n_b, dr_a, alpha)
-
-    return {
-        "group_a": metrics_a,
-        "group_b": metrics_b,
-        "approval_rate": {
-            "z_statistic": ar_ztest["z_statistic"],
-            "p_value": ar_ztest["p_value"],
-            "ci_lower": ar_ci["ci_lower"],
-            "ci_upper": ar_ci["ci_upper"],
-            "significant": ar_significant,
-            "power": ar_power["power"],
-            "mde": ar_mde["mde"],
-            "treatment_effect": ar_b - ar_a
-        },
-        "default_rate": {
-            "z_statistic": dr_ztest["z_statistic"],
-            "p_value": dr_ztest["p_value"],
-            "ci_lower": dr_ci["ci_lower"],
-            "ci_upper": dr_ci["ci_upper"],
-            "significant": dr_significant,
-            "power": dr_power["power"],
-            "mde": dr_mde["mde"],
-            "treatment_effect": dr_b - dr_a
-        }
+def save_results(summary, analysis, path="results.json"):
+    output = {
+        "summary": summary.to_dict(orient="index"),
+        "analysis": analysis,
     }
-
-
-if __name__ == "__main__":
-    results = run_simulation()
-    print(results)
+    with open(path, "w") as f:
+        json.dump(output, f, indent=2, default=float)

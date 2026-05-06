@@ -1,55 +1,44 @@
 {
-  "sample_sizes": {
-    "group_a": 2500,
-    "group_b": 2500
-  },
   "summary": {
-    "Group A (Control)": {
-      "n": 2500,
+    "A": {
+      "applicants": 2500,
       "approval_rate": 0.6188,
-      "default_rate": 0.18487394957983194,
-      "avg_loan_size": 17039.758435337917,
-      "avg_processing_time": 3.8851361913855227
+      "default_rate": 0.0696,
+      "avg_loan_size": 40829.4854,
+      "avg_processing_days": 4.5391
     },
-    "Group B (Treatment)": {
-      "n": 2500,
-      "approval_rate": 0.702,
-      "default_rate": 0.13105413105413105,
-      "avg_loan_size": 17034.00969543551,
-      "avg_processing_time": 3.467499808635775
+    "B": {
+      "applicants": 2500,
+      "approval_rate": 0.7052,
+      "default_rate": 0.0708,
+      "avg_loan_size": 44870.8163,
+      "avg_processing_days": 4.0452
     }
   },
-  "approval_rate": {
-    "test": {
-      "z_stat": 6.211420909860123,
-      "p_value": 5.250761730311395e-10,
-      "diff": 0.08319999999999994,
-      "pooled_p": 0.6604,
-      "se": 0.01339468073527697
+  "analysis": {
+    "approval_rate": {
+      "group_A": 0.6188,
+      "group_B": 0.7052,
+      "difference": 0.0864,
+      "z_statistic": -6.4578,
+      "p_value": 0.0,
+      "ci_lower": -0.1125,
+      "ci_upper": -0.0603,
+      "significant": 1.0,
+      "power": 1.0,
+      "mde": 0.0396
     },
-    "ci": [
-      0.0570483933491716,
-      0.10935160665082828
-    ],
-    "power": 0.9999876568982505,
-    "mde": 0.03845541320934018,
-    "significant": 1.0
-  },
-  "default_rate": {
-    "test": {
-      "z_stat": -2.026296521057049,
-      "p_value": 0.04273440755994753,
-      "diff": -0.021307668366491894,
-      "pooled_p": 0.10115081768625075,
-      "se": 0.010515572693860432
-    },
-    "ci": [
-      -0.04202586527283387,
-      -0.0005894714601499193
-    ],
-    "power": 0.4648720819381845,
-    "mde": 0.03200828614679472,
-    "significant": 1.0
-  },
-  "alpha": 0.05
+    "default_rate": {
+      "group_A": 0.1125,
+      "group_B": 0.1004,
+      "difference": -0.0121,
+      "z_statistic": 1.3847,
+      "p_value": 0.1661,
+      "ci_lower": -0.005,
+      "ci_upper": 0.0292,
+      "significant": 0.0,
+      "power": 0.2827,
+      "mde": 0.0396
+    }
+  }
 }

@@ -1,95 +1,74 @@
+"""
+Data generator for the A/B test experiment.
+Generates synthetic loan application data for control (A) and treatment (B) groups.
+"""
 import numpy as np
 import pandas as pd
 
+np.random.seed(42)
 
-def generate_experiment_data(n=5000, seed=42):
-    np.random.seed(seed)
+N = 2500  # applicants per group
 
-    group_a_size = n // 2
-    group_b_size = n - group_a_size
+def generate_data():
+    """Generate 5000 synthetic loan records: 2500 control (A), 2500 treatment (B)."""
 
-    group_a_approval = 0.62
-    group_b_approval = 0.71
-    group_a_default = 0.11
-    group_b_default = 0.09
+    # --- Group A (Control) ---
+    approved_A = np.random.random(N) < 0.62
+    defaulted_A = approved_A & (np.random.random(N) < 0.11)
 
-    group_a_approved = np.random.random(group_a_size) < group_a_approval
-    group_b_approved = np.random.random(group_b_size) < group_b_approval
-
-    group_a_default_given_approved = np.array([
-        np.random.random() < group_a_default if approved else False
-        for approved in group_a_approved
-    ])
-    group_b_default_given_approved = np.array([
-        np.random.random() < group_b_default if approved else False
-        for approved in group_b_approved
-    ])
-
-    group_a_loan_size = np.where(
-        group_a_approved,
-        np.random.normal(15000, 5000, group_a_size),
-        0
+    loan_size_A = np.where(
+        approved_A,
+        np.random.lognormal(mean=10.5, sigma=0.5, size=N),
+        0.0
     )
-    group_b_loan_size = np.where(
-        group_b_approved,
-        np.random.normal(15500, 5200, group_b_size),
-        0
+    # processing time: approved loans take 3-10 days, rejected take 1-2 days
+    processing_time_A = np.where(
+        approved_A,
+        np.random.uniform(3, 10, size=N),
+        np.random.uniform(1, 2, size=N)
     )
 
-    group_a_loan_size = np.clip(group_a_loan_size, 1000, 50000)
-    group_b_loan_size = np.clip(group_b_loan_size, 1000, 50000)
-
-    group_a_processing = np.where(
-        group_a_approved,
-        np.random.normal(4.5, 1.2, group_a_size),
-        np.random.normal(1.5, 0.5, group_a_size)
-    )
-    group_b_processing = np.where(
-        group_b_approved,
-        np.random.normal(3.8, 1.0, group_b_size),
-        np.random.normal(1.2, 0.4, group_b_size)
-    )
-
-    df_a = pd.DataFrame({
-        "applicant_id": range(group_a_size),
+    df_A = pd.DataFrame({
         "group": "A",
-        "approved": group_a_approved,
-        "defaulted": group_a_default_given_approved,
-        "loan_size": group_a_loan_size,
-        "processing_time": group_a_processing
+        "approved": approved_A.astype(int),
+        "defaulted": defaulted_A.astype(int),
+        "loan_size": np.round(loan_size_A, 2),
+        "processing_days": np.round(processing_time_A, 2),
     })
 
-    df_b = pd.DataFrame({
-        "applicant_id": range(group_a_size, n),
+    # --- Group B (Treatment) ---
+    approved_B = np.random.random(N) < 0.71
+    defaulted_B = approved_B & (np.random.random(N) < 0.09)
+
+    loan_size_B = np.where(
+        approved_B,
+        np.random.lognormal(mean=10.6, sigma=0.48, size=N),
+        0.0
+    )
+    processing_time_B = np.where(
+        approved_B,
+        np.random.uniform(2.5, 8, size=N),
+        np.random.uniform(0.5, 1.5, size=N)
+    )
+
+    df_B = pd.DataFrame({
         "group": "B",
-        "approved": group_b_approved,
-        "defaulted": group_b_default_given_approved,
-        "loan_size": group_b_loan_size,
-        "processing_time": group_b_processing
+        "approved": approved_B.astype(int),
+        "defaulted": defaulted_B.astype(int),
+        "loan_size": np.round(loan_size_B, 2),
+        "processing_days": np.round(processing_time_B, 2),
     })
 
-    df = pd.concat([df_a, df_b], ignore_index=True)
-
+    df = pd.concat([df_A, df_B], ignore_index=True)
     return df
 
-
-def compute_group_metrics(df, group):
-    g = df[df["group"] == group]
-    approved = g[g["approved"]]
-
-    return {
-        "group": group,
-        "n": len(g),
-        "n_approved": g["approved"].sum(),
-        "approval_rate": g["approved"].mean(),
-        "default_rate": approved["defaulted"].mean() if len(approved) > 0 else 0,
-        "avg_loan_size": approved["loan_size"].mean() if len(approved) > 0 else 0,
-        "avg_processing_time": g["processing_time"].mean()
-    }
-
-
-if __name__ == "__main__":
-    data = generate_experiment_data()
-    print(data.head(10))
-    print("\nGroup A metrics:", compute_group_metrics(data, "A"))
-    print("Group B metrics:", compute_group_metrics(data, "B"))
+def summarize(df):
+    """Return per-group summary statistics."""
+    grp = df.groupby("group")
+    return grp.agg(
+        applicants=("approved", "count"),
+        approval_rate=("approved", "mean"),
+        default_rate=("defaulted", "mean"),
+        avg_loan_size=("loan_size", lambda x: x[x > 0].mean()),
+        avg_processing_days=("processing_days", "mean"),
+    ).round(4)
