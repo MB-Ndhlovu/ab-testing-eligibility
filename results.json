@@ -1,52 +1,40 @@
 {
-  "data": {
-    "group_a": {
+  "groups": {
+    "control": {
       "n": 2500,
-      "approved": 1572,
-      "approval_rate": 0.6288,
-      "defaults": 155,
-      "default_rate": 0.09860050890585242,
-      "avg_loan_size": 20824.39366345926,
-      "avg_processing_time": 4.674456917461542
+      "approval_rate": 0.618,
+      "default_rate": 0.10744336569579288,
+      "avg_loan_size": 18833.29077669903,
+      "avg_processing_time": 6.206111999999999
     },
-    "group_b": {
+    "treatment": {
       "n": 2500,
-      "approved": 1772,
-      "approval_rate": 0.7088,
-      "defaults": 165,
-      "default_rate": 0.09311512415349887,
-      "avg_loan_size": 21330.366973939537,
-      "avg_processing_time": 4.349552054022973
+      "approval_rate": 0.7028,
+      "default_rate": 0.08764940239043825,
+      "avg_loan_size": 26658.64004553216,
+      "avg_processing_time": 4.931108
     }
   },
-  "stats": {
-    "approval_rate": {
-      "metric": "approval_rate",
-      "control_rate": 0.6288,
-      "treatment_rate": 0.7088,
-      "z": 6.00968483865992,
-      "p_value": 1.8588433015054306e-09,
-      "ci_95": [
-        0.054003184181196304,
-        0.10599681581880362
-      ],
-      "diff": 0.07999999999999996,
-      "mde": 0.03962039811599345,
-      "significant": true
-    },
-    "default_rate": {
-      "metric": "default_rate",
-      "control_rate": 0.09860050890585242,
-      "treatment_rate": 0.09311512415349887,
-      "z": -0.6587641689590604,
-      "p_value": 0.5100472195577661,
-      "ci_95": [
-        -0.021805166601925434,
-        0.010834397097218333
-      ],
-      "diff": -0.00548538475235355,
-      "mde": 0.03962039811599345,
-      "significant": false
-    }
+  "approval_rate_test": {
+    "z_statistic": 6.3309,
+    "p_value": 0.0,
+    "ci_95": [
+      0.058652,
+      0.110948
+    ],
+    "significant": true
+  },
+  "default_rate_test": {
+    "z_statistic": -0.6934,
+    "p_value": 0.488074,
+    "ci_95": [
+      -0.018368,
+      0.008768
+    ],
+    "significant": false
+  },
+  "power": {
+    "approval_rate_test": 0.0,
+    "mde_approval_rate": 0.03962
   }
 }
