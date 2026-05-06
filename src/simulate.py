@@ -1,69 +1,61 @@
-"""
-Run A/B test experiment simulation.
-"""
-
+import json
 import numpy as np
-from .data_generator import generate_data, compute_summary_stats
-from .statistical import two_proportion_ztest, confidence_interval_diff, power_analysis
+from src.data_generator import generate_credit_data, get_group_stats
+from src.statistical import two_proportion_ztest, confidence_interval_diff, statistical_power, minimum_detectable_effect
 
-def run_simulation(seed=42, alpha=0.05):
-    """Run full A/B test simulation."""
-    data = generate_data(n=5000, seed=seed)
-    stats_summary = compute_summary_stats(data)
+def make_serializable(obj):
+    if isinstance(obj, (np.bool_, bool)):
+        return bool(obj)
+    elif isinstance(obj, (np.integer, int)):
+        return int(obj)
+    elif isinstance(obj, (np.floating, float)):
+        return float(obj)
+    elif isinstance(obj, dict):
+        return {k: make_serializable(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [make_serializable(v) for v in obj]
+    return obj
+
+def run_simulation(df):
+    stats = get_group_stats(df)
+    results = {'metrics': {}, 'groups': stats}
     
-    n_a = stats_summary['group_a']['n']
-    n_b = stats_summary['group_b']['n']
-    p_approved_a = stats_summary['group_a']['approval_rate']
-    p_approved_b = stats_summary['group_b']['approval_rate']
-    p_default_a = stats_summary['group_a']['default_rate']
-    p_default_b = stats_summary['group_b']['default_rate']
-    
-    # Test approval rate
-    z_approval, p_approval = two_proportion_ztest(n_a, p_approved_a, n_b, p_approved_b)
-    ci_approval = confidence_interval_diff(n_a, p_approved_a, n_b, p_approved_b, alpha)
-    
-    # Test default rate
-    z_default, p_default = two_proportion_ztest(n_a, p_default_a, n_b, p_default_b)
-    ci_default = confidence_interval_diff(n_a, p_default_a, n_b, p_default_b, alpha)
-    
-    # Power analysis
-    mde_approval = abs(p_approved_b - p_approved_a)
-    mde_default = abs(p_default_b - p_default_a)
-    n_required_approval = power_analysis(p_approved_a, p_approved_b, alpha)
-    n_required_default = power_analysis(p_default_a, p_default_b, alpha)
-    
-    results = {
-        'sample_size': {'group_a': n_a, 'group_b': n_b},
-        'approval_rate': {
-            'group_a': round(p_approved_a, 4),
-            'group_b': round(p_approved_b, 4),
-            'diff': round(p_approved_b - p_approved_a, 4),
-            'z_statistic': round(z_approval, 4),
-            'p_value': round(p_approval, 6),
-            'ci_95': (round(ci_approval[0], 4), round(ci_approval[1], 4)),
-            'significant': p_approval < alpha,
-            'mde_observed': round(mde_approval, 4),
-            'n_required': n_required_approval,
-        },
-        'default_rate': {
-            'group_a': round(p_default_a, 4),
-            'group_b': round(p_default_b, 4),
-            'diff': round(p_default_b - p_default_a, 4),
-            'z_statistic': round(z_default, 4),
-            'p_value': round(p_default, 6),
-            'ci_95': (round(ci_default[0], 4), round(ci_default[1], 4)),
-            'significant': p_default < alpha,
-            'mde_observed': round(mde_default, 4),
-            'n_required': n_required_default,
-        },
-        'avg_loan_size': {
-            'group_a': round(stats_summary['group_a']['avg_loan_size'], 2),
-            'group_b': round(stats_summary['group_b']['avg_loan_size'], 2),
-        },
-        'avg_processing_time': {
-            'group_a': round(stats_summary['group_a']['avg_processing_time'], 2),
-            'group_b': round(stats_summary['group_b']['avg_processing_time'], 2),
+    for metric in ['approval_rate', 'default_rate']:
+        n_a = stats['A']['n']
+        n_b = stats['B']['n']
+        p_a = stats['A'][metric]
+        p_b = stats['B'][metric]
+        
+        if metric == 'approval_rate':
+            alt = 'larger'
+        else:
+            alt = 'smaller'
+        
+        z, p_val = two_proportion_ztest(n_a, p_a, n_b, p_b, alternative=alt)
+        ci = confidence_interval_diff(n_a, p_a, n_b, p_b)
+        
+        effect = p_b - p_a
+        power = statistical_power(n_a, p_a, p_b)
+        mde = minimum_detectable_effect(n_a)
+        
+        significant = bool(p_val < 0.05)
+        
+        results['metrics'][metric] = {
+            'group_A': round(float(p_a), 4),
+            'group_B': round(float(p_b), 4),
+            'difference': round(float(effect), 4),
+            'z_statistic': round(float(z), 4),
+            'p_value': round(float(p_val), 6),
+            'ci_lower': round(float(ci[0]), 4),
+            'ci_upper': round(float(ci[1]), 4),
+            'significant_at_0.05': significant,
+            'power': round(float(power), 4),
+            'mde': round(float(mde), 4)
         }
-    }
     
     return results
+
+if __name__ == '__main__':
+    df = generate_credit_data()
+    results = run_simulation(df)
+    print(json.dumps(results, indent=2))
