@@ -1,0 +1,58 @@
+{
+  "n": 5000,
+  "seed": 42,
+  "alpha": 0.05,
+  "metrics": {
+    "A": {
+      "n": 2500,
+      "approved_count": 1547,
+      "approval_rate": 0.6188,
+      "default_count": 174,
+      "default_rate": 0.11247575953458307,
+      "avg_loan_size": 81.7858371040724,
+      "avg_processing_time": 19.192895927601807
+    },
+    "B": {
+      "n": 2500,
+      "approved_count": 1807,
+      "approval_rate": 0.7228,
+      "default_count": 161,
+      "default_rate": 0.08909795240730492,
+      "avg_loan_size": 87.93111787493082,
+      "avg_processing_time": 13.917570558937465
+    }
+  },
+  "stats": {
+    "alpha": 0.05,
+    "approval": {
+      "z_statistic": 7.824595680859453,
+      "p_value": 5.10702591327572e-15,
+      "diff": 0.10399999999999998,
+      "ci_lower": 0.07810927725579772,
+      "ci_upper": 0.12989072274420224,
+      "significant": "True",
+      "power": 0.9999999983201526,
+      "mde": 0.0384857920837217,
+      "control_rate": 0.6188,
+      "treatment_rate": 0.7228
+    },
+    "default": {
+      "z_statistic": -2.2508967469103607,
+      "p_value": 0.024392077837764647,
+      "diff": -0.023377807127278147,
+      "ci_lower": -0.04388188254065768,
+      "ci_upper": -0.0028737317138986147,
+      "significant": "True",
+      "control_rate": 0.11247575953458307,
+      "treatment_rate": 0.08909795240730492
+    }
+  },
+  "treatment_effect": {
+    "approval_rate_lift": 0.10399999999999998,
+    "default_rate_lift": -0.023377807127278147,
+    "avg_loan_size_A": 81.7858371040724,
+    "avg_loan_size_B": 87.93111787493082,
+    "avg_processing_time_A": 19.192895927601807,
+    "avg_processing_time_B": 13.917570558937465
+  }
+}
