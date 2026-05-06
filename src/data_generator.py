@@ -1,102 +1,95 @@
 import numpy as np
 import pandas as pd
-from typing import Tuple
-
-np.random.seed(42)
 
 
-def generate_credit_data(n: int = 5000, group_ratio: float = 0.5) -> pd.DataFrame:
-    """
-    Generate synthetic credit application data for A/B testing.
+def generate_experiment_data(n=5000, seed=42):
+    np.random.seed(seed)
 
-    Args:
-        n: Total number of applicants
-        group_ratio: Proportion of applicants in Group A (control)
+    group_a_size = n // 2
+    group_b_size = n - group_a_size
 
-    Returns:
-        DataFrame with columns: applicant_id, group, approved, defaulted,
-                                 loan_size, processing_time_hours
-    """
-    n_a = int(n * group_ratio)
-    n_b = n - n_a
+    group_a_approval = 0.62
+    group_b_approval = 0.71
+    group_a_default = 0.11
+    group_b_default = 0.09
 
-    # Group A (control): current eligibility model
-    # approval_rate ~0.62, default_rate ~0.11
-    approval_rate_a = 0.62
-    default_rate_a = 0.11
+    group_a_approved = np.random.random(group_a_size) < group_a_approval
+    group_b_approved = np.random.random(group_b_size) < group_b_approval
 
-    # Group B (treatment): new eligibility model
-    # approval_rate ~0.71, default_rate ~0.09
-    approval_rate_b = 0.71
-    default_rate_b = 0.09
+    group_a_default_given_approved = np.array([
+        np.random.random() < group_a_default if approved else False
+        for approved in group_a_approved
+    ])
+    group_b_default_given_approved = np.array([
+        np.random.random() < group_b_default if approved else False
+        for approved in group_b_approved
+    ])
 
-    # Generate applicant IDs
-    ids_a = [f"APP-A-{i:05d}" for i in range(n_a)]
-    ids_b = [f"APP-B-{i:05d}" for i in range(n_b)]
+    group_a_loan_size = np.where(
+        group_a_approved,
+        np.random.normal(15000, 5000, group_a_size),
+        0
+    )
+    group_b_loan_size = np.where(
+        group_b_approved,
+        np.random.normal(15500, 5200, group_b_size),
+        0
+    )
 
-    # Generate approval decisions with noise
-    approved_a = np.random.random(n_a) < approval_rate_a
-    approved_b = np.random.random(n_b) < approval_rate_b
+    group_a_loan_size = np.clip(group_a_loan_size, 1000, 50000)
+    group_b_loan_size = np.clip(group_b_loan_size, 1000, 50000)
 
-    # Generate default outcomes (only for approved loans)
-    defaulted_a = approved_a & (np.random.random(n_a) < default_rate_a + np.random.normal(0, 0.02, n_a))
-    defaulted_b = approved_b & (np.random.random(n_b) < default_rate_b + np.random.normal(0, 0.02, n_b))
+    group_a_processing = np.where(
+        group_a_approved,
+        np.random.normal(4.5, 1.2, group_a_size),
+        np.random.normal(1.5, 0.5, group_a_size)
+    )
+    group_b_processing = np.where(
+        group_b_approved,
+        np.random.normal(3.8, 1.0, group_b_size),
+        np.random.normal(1.2, 0.4, group_b_size)
+    )
 
-    # Clip default rates to valid range
-    defaulted_a = defaulted_a & (np.random.random(n_a) < 0.95)
-    defaulted_b = defaulted_b & (np.random.random(n_b) < 0.95)
-
-    # Generate loan sizes (approved applications only)
-    base_loan_a = np.random.lognormal(mean=9.5, sigma=0.8, size=n_a)
-    base_loan_b = np.random.lognormal(mean=9.7, sigma=0.9, size=n_b)
-
-    # Mask loan sizes for non-approved applications
-    loan_size_a = np.where(approved_a, base_loan_a, 0)
-    loan_size_b = np.where(approved_b, base_loan_b, 0)
-
-    # Generate processing time (hours) - slightly faster for new model
-    processing_time_a = np.random.exponential(scale=2.5, size=n_a) + np.random.normal(1.0, 0.3, n_a)
-    processing_time_b = np.random.exponential(scale=2.2, size=n_b) + np.random.normal(0.9, 0.3, n_b)
-
-    # Create DataFrames
     df_a = pd.DataFrame({
-        "applicant_id": ids_a,
+        "applicant_id": range(group_a_size),
         "group": "A",
-        "approved": approved_a,
-        "defaulted": defaulted_a,
-        "loan_size": loan_size_a,
-        "processing_time_hours": processing_time_a
+        "approved": group_a_approved,
+        "defaulted": group_a_default_given_approved,
+        "loan_size": group_a_loan_size,
+        "processing_time": group_a_processing
     })
 
     df_b = pd.DataFrame({
-        "applicant_id": ids_b,
+        "applicant_id": range(group_a_size, n),
         "group": "B",
-        "approved": approved_b,
-        "defaulted": defaulted_b,
-        "loan_size": loan_size_b,
-        "processing_time_hours": processing_time_b
+        "approved": group_b_approved,
+        "defaulted": group_b_default_given_approved,
+        "loan_size": group_b_loan_size,
+        "processing_time": group_b_processing
     })
 
     df = pd.concat([df_a, df_b], ignore_index=True)
-    np.random.shuffle(df.values)
 
     return df
 
 
-def compute_group_metrics(df: pd.DataFrame, group: str) -> dict:
-    """Compute key metrics for a group."""
+def compute_group_metrics(df, group):
     g = df[df["group"] == group]
-    approved = g["approved"]
-    defaulted = g["defaulted"]
-    approved_count = approved.sum()
-    total_count = len(g)
+    approved = g[g["approved"]]
 
     return {
-        "approval_rate": approved.mean() if total_count > 0 else 0,
-        "approval_count": int(approved_count),
-        "total_applicants": total_count,
-        "default_rate": defaulted.mean() if approved_count > 0 else 0,
-        "default_count": int(defaulted.sum()),
-        "avg_loan_size": g.loc[approved, "loan_size"].mean() if approved_count > 0 else 0,
-        "avg_processing_time": g.loc[approved, "processing_time_hours"].mean() if approved_count > 0 else 0
+        "group": group,
+        "n": len(g),
+        "n_approved": g["approved"].sum(),
+        "approval_rate": g["approved"].mean(),
+        "default_rate": approved["defaulted"].mean() if len(approved) > 0 else 0,
+        "avg_loan_size": approved["loan_size"].mean() if len(approved) > 0 else 0,
+        "avg_processing_time": g["processing_time"].mean()
     }
+
+
+if __name__ == "__main__":
+    data = generate_experiment_data()
+    print(data.head(10))
+    print("\nGroup A metrics:", compute_group_metrics(data, "A"))
+    print("Group B metrics:", compute_group_metrics(data, "B"))

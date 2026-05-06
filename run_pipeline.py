@@ -1,27 +1,26 @@
-import os
+import json
 import sys
+from src.simulate import run_simulation
+from src.report import generate_report
 
-sys.path.insert(0, os.path.dirname(__file__))
-
-from src.simulate import run_experiment
-from src.report import generate_report, save_results_json
+ALPHA = 0.05
+OUTPUT_JSON = "ab_test_results.json"
 
 
 def main():
-    print("Running A/B Test Pipeline...\n")
+    print("Running A/B Test Simulation...\n")
+    results = run_simulation(alpha=ALPHA)
 
-    results = run_experiment(n_applicants=5000)
+    with open(OUTPUT_JSON, "w") as f:
+        json.dump(results, f, indent=2, default=float)
 
     report = generate_report(results)
     print(report)
-
-    output_dir = os.path.dirname(os.path.abspath(__file__))
-    json_path = os.path.join(output_dir, "ab_test_results.json")
-    save_results_json(results, json_path)
-    print(f"\nResults saved to: {json_path}")
+    print(f"\nResults saved to: {OUTPUT_JSON}")
 
     return results
 
 
 if __name__ == "__main__":
-    main()
+    results = main()
+    sys.exit(0)
