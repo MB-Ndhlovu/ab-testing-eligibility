@@ -2,64 +2,39 @@
 
 ## Business Problem
 
-A lender wants to evaluate whether a new credit eligibility model (Group B) outperforms their current model (Group A). The key metrics are:
+A lender wants to evaluate whether a new credit eligibility model (Group B) outperforms their current model (Group A). The new model is expected to:
+- Increase approval rates (approve more creditworthy applicants)
+- Reduce default rates (better risk selection)
 
-- **Approval Rate**: Higher is better (more loans originated)
-- **Default Rate**: Lower is better (less credit risk)
+## Objective
 
-The challenge is distinguishing genuine improvement from random noise in a controlled experiment.
+Run a controlled A/B experiment to determine if the differences in approval rate and default rate between the two models are statistically significant at α = 0.05.
 
 ## Methodology
 
-### Experimental Design
+### Data Generation
+- 5,000 synthetic applicants split evenly: 2,500 in Group A (control) and 2,500 in Group B (treatment)
+- Group A (current model): approval_rate ≈ 0.62, default_rate ≈ 0.11
+- Group B (new model): approval_rate ≈ 0.71, default_rate ≈ 0.09
+- Realistic noise added via Bernoulli trials with specified probabilities
 
-- **Control Group (A)**: Current eligibility model
-- **Treatment Group (B)**: New eligibility model
-- **Sample Size**: 5,000 applicants per group (10,000 total)
-- **Allocation**: 50/50 random split
+### Statistical Testing
+Two-proportion z-test for each metric:
+- **Approval Rate**: Tests whether the new model approves a significantly higher proportion of applicants
+- **Default Rate**: Tests whether the new model achieves a significantly lower default rate
 
-### Target Metrics
-
-| Metric | Group A (Control) | Group B (Treatment) | Direction |
-|--------|-------------------|---------------------|-----------|
-| Approval Rate | ~62% | ~71% | ↑ better |
-| Default Rate | ~11% | ~9% | ↓ better |
-
-### Statistical Approach
-
-We use a **two-proportion z-test** for each metric to determine if the difference between groups is statistically significant at α = 0.05.
-
+### Metrics Reported
 For each metric:
-1. Compute observed proportions for each group
-2. Calculate the pooled proportion under null hypothesis
-3. Compute z-statistic: `z = (p_B - p_A) / sqrt(p_pool * (1 - p_pool) * (1/n_A + 1/n_B))`
-4. Calculate p-value from standard normal distribution
-5. Construct 95% confidence interval for the true difference
-
-### Key Thresholds
-
-- **α (significance level)**: 0.05
-- **Power**: 80% minimum
-- **Minimum Detectable Effect**: Calculated for each metric
-
-## Output
-
-The pipeline produces:
-- JSON results file: `results.json`
-- Console summary report
-- Statistical conclusions per metric
+- Observed rates for both groups
+- Z-statistic
+- Two-tailed p-value
+- 95% confidence interval for the difference
+- Statistical conclusion (significant / not significant)
 
 ## Files
 
-```
-ab-testing-eligibility/
-├── README.md
-├── requirements.txt
-├── run_pipeline.py
-└── src/
-    ├── __init__.py
-    ├── data_generator.py   # Synthetic data generation
-    ├── statistical.py      # Two-proportion z-test implementation
-    ├── simulate.py          # Experiment simulation
-    └── report.py            # Report generation
-```
+- `src/data_generator.py` — Generates synthetic loan applicant data
+- `src/statistical.py` — Two-proportion z-test, confidence intervals, power analysis
+- `src/simulate.py` — Runs experiment simulation and computes treatment effects
+- `src/report.py` — Generates a readable summary report
+- `run_pipeline.py` — Executes the full pipeline end-to-end

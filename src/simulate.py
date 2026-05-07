@@ -1,70 +1,97 @@
-"""Run A/B test experiment simulation and compute treatment effects."""
-import numpy as np
-from .data_generator import generate_data, compute_group_stats
-from .statistical import evaluate_metric
+"""
+Runs the A/B experiment simulation and computes treatment effects and significance.
+"""
 
-def run_simulation(alpha=0.05):
+from src.data_generator import generate_data, compute_group_stats
+from src.statistical import two_proportion_ztest
+
+
+def run_simulation(seed=42):
     """
-    Run the full A/B test simulation.
-    
-    Parameters:
-    -----------
-    alpha : float
-        Significance level for hypothesis testing
-    
+    Run the full A/B experiment simulation.
+
+    Args:
+        seed: Random seed for reproducibility
+
     Returns:
-    --------
-    dict with simulation results
+        dict with full results: data, stats, test results, summary
     """
-    # Generate data
-    df = generate_data()
-    
-    # Compute group statistics
-    stats = compute_group_stats(df)
-    
-    n_A = stats['A']['n']
-    n_B = stats['B']['n']
-    
-    # Evaluate approval rate
-    approval_result = evaluate_metric(
-        name='Approval Rate',
-        n_A=n_A,
-        p_A=stats['A']['approval_rate'],
-        n_B=n_B,
-        p_B=stats['B']['approval_rate'],
-        alpha=alpha
+    data = generate_data(n=5000, seed=seed)
+    stats = compute_group_stats(data)
+
+    n_a = stats['A']['n']
+    n_b = stats['B']['n']
+
+    # Test approval rate
+    approval_test = two_proportion_ztest(
+        n_control=n_a,
+        p_control=stats['A']['approval_rate'],
+        n_treatment=n_b,
+        p_treatment=stats['B']['approval_rate']
     )
-    
-    # Evaluate default rate
-    default_result = evaluate_metric(
-        name='Default Rate',
-        n_A=n_A,
-        p_A=stats['A']['default_rate'],
-        n_B=n_B,
-        p_B=stats['B']['default_rate'],
-        alpha=alpha
+
+    # Test default rate
+    default_test = two_proportion_ztest(
+        n_control=n_a,
+        p_control=stats['A']['default_rate'],
+        n_treatment=n_b,
+        p_treatment=stats['B']['default_rate']
     )
-    
-    return {
-        'group_stats': stats,
-        'approval_rate_analysis': approval_result,
-        'default_rate_analysis': default_result,
-        'alpha': alpha,
+
+    results = {
+        'data': data,
+        'stats': stats,
+        'tests': {
+            'approval_rate': approval_test,
+            'default_rate': default_test
+        },
+        'meta': {
+            'n_total': 5000,
+            'n_per_group': 2500,
+            'alpha': 0.05
+        }
     }
 
-def compute_treatment_effects(results):
-    """Extract treatment effects from results."""
-    approval_effect = results['approval_rate_analysis']['treatment_effect']
-    default_effect = results['default_rate_analysis']['treatment_effect']
+    return results
+
+
+def format_test_result(metric_name, test_result, rate_a, rate_b):
+    """Format a single test result for reporting."""
+    diff = rate_b - rate_a
+    direction = "higher" if diff > 0 else "lower"
+    sig_word = "SIGNIFICANT" if test_result['significant'] else "not significant"
+
     return {
-        'approval_rate_lift': approval_effect,
-        'default_rate_change': default_effect,
-        'approval_rate_lift_pct': (approval_effect / results['group_stats']['A']['approval_rate']) * 100,
-        'default_rate_change_pct': (default_effect / results['group_stats']['A']['default_rate']) * 100,
+        'metric': metric_name,
+        'rate_A': rate_a,
+        'rate_B': rate_b,
+        'difference': diff,
+        'direction': direction,
+        'z_statistic': test_result['z_statistic'],
+        'p_value': test_result['p_value'],
+        'ci_95_lower': test_result['ci_95'][0],
+        'ci_95_upper': test_result['ci_95'][1],
+        'significant': test_result['significant'],
+        'conclusion': f"Group B is {direction} than Group A ({sig_word} at α=0.05)"
     }
+
 
 if __name__ == '__main__':
     results = run_simulation()
-    print("Simulation complete")
-    print(f"Approval Rate: {results['approval_rate_analysis']['group_A_proportion']:.4f} vs {results['approval_rate_analysis']['group_B_proportion']:.4f}")
-    print(f"Default Rate: {results['default_rate_analysis']['group_A_proportion']:.4f} vs {results['default_rate_analysis']['group_B_proportion']:.4f}")
+    print("=== A/B Simulation Results ===")
+    print(f"\nGroups:")
+    print(f"  A (control): n={results['stats']['A']['n']}")
+    print(f"  B (treatment): n={results['stats']['B']['n']}")
+
+    for metric in ['approval_rate', 'default_rate']:
+        tr = results['tests'][metric]
+        ra = results['stats']['A'][metric]
+        rb = results['stats']['B'][metric]
+        fmt = format_test_result(metric, tr, ra, rb)
+        print(f"\n--- {metric.upper().replace('_', ' ')} ---")
+        print(f"  Group A: {ra:.4f}  |  Group B: {rb:.4f}")
+        print(f"  Difference: {fmt['difference']:+.4f}")
+        print(f"  z-statistic: {tr['z_statistic']:.4f}")
+        print(f"  p-value: {tr['p_value']:.6f}")
+        print(f"  95% CI: ({tr['ci_95'][0]:.4f}, {tr['ci_95'][1]:.4f})")
+        print(f"  Conclusion: {fmt['conclusion']}")

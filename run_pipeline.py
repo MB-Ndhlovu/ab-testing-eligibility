@@ -1,43 +1,51 @@
-"""Execute the full A/B test pipeline and save results."""
+"""
+Executes the full A/B testing pipeline end-to-end.
+"""
+
 import json
 import sys
-import os
+from src.simulate import run_simulation
+from src.report import generate_report, results_to_dict
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
-from src.simulate import run_simulation, compute_treatment_effects
-from src.report import generate_summary_report, results_to_json
-
-def save_json_results(results, filepath='results.json'):
-    """Save results to JSON file."""
-    with open(filepath, 'w') as f:
-        json.dump(results_to_json(results), f, indent=2)
-    print(f"\nResults saved to: {filepath}")
 
 def main():
-    print("Running A/B Test Pipeline...")
-    print("-" * 40)
-    
-    # Run simulation
-    results = run_simulation()
-    
-    # Compute treatment effects
-    effects = compute_treatment_effects(results)
-    
-    # Generate and print report
-    report = generate_summary_report(results)
+    print("Starting A/B Testing Pipeline...\n")
+
+    results = run_simulation(seed=42)
+    report = generate_report(results)
     print(report)
-    
-    # Save results
-    save_json_results(results)
-    
-    # Print treatment effects summary
-    print("\nTREATMENT EFFECTS SUMMARY")
-    print("-" * 40)
-    print(f"  Approval Rate Lift: +{effects['approval_rate_lift']:.4f} ({effects['approval_rate_lift_pct']:.2f}%)")
-    print(f"  Default Rate Change: {effects['default_rate_change']:.4f} ({effects['default_rate_change_pct']:.2f}%)")
-    
-    return results
+
+    # Save JSON output
+    output_dict = results_to_dict(results)
+    json_path = '/home/workspace/Projects/ab-testing-eligibility/results.json'
+    with open(json_path, 'w') as f:
+        json.dump(output_dict, f, indent=2)
+
+    print(f"\n[OUTPUT] Results saved to results.json")
+
+    # Build a compact summary for Telegram
+    approval = results['tests']['approval_rate']
+    default = results['tests']['default_rate']
+    approval_sig = "✓ SIGNIFICANT" if approval['significant'] else "✗ not significant"
+    default_sig = "✓ SIGNIFICANT" if default['significant'] else "✗ not significant"
+
+    summary = (
+        f"Approval Rate: Group A={results['stats']['A']['approval_rate']:.4f}  "
+        f"Group B={results['stats']['B']['approval_rate']:.4f}  "
+        f"z={approval['z_statistic']:.3f}  p={approval['p_value']:.4f}  "
+        f"95% CI=[{approval['ci_95'][0]:+.4f}, {approval['ci_95'][1]:+.4f}]  "
+        f"{approval_sig}\n"
+        f"Default Rate: Group A={results['stats']['A']['default_rate']:.4f}  "
+        f"Group B={results['stats']['B']['default_rate']:.4f}  "
+        f"z={default['z_statistic']:.3f}  p={default['p_value']:.4f}  "
+        f"95% CI=[{default['ci_95'][0]:+.4f}, {default['ci_95'][1]:+.4f}]  "
+        f"{default_sig}"
+    )
+
+    print(f"\n[SUMMARY FOR COMMIT]\n{summary}")
+
+    return output_dict
+
 
 if __name__ == '__main__':
-    results = main()
+    main()

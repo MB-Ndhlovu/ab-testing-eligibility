@@ -1,51 +1,43 @@
 {
-  "group_stats": {
-    "A": {
-      "n": 5000,
-      "approval_rate": 0.6202,
-      "default_rate": 0.10899709771041599,
-      "avg_loan_size": 51873.519500567025,
-      "avg_processing_time": 2.436620667390602
+  "experiment": {
+    "n_total": 5000,
+    "n_per_group": 2500,
+    "alpha": 0.05
+  },
+  "group_A": {
+    "n": 2500,
+    "approval_rate": 0.6264,
+    "default_rate": 0.10983397190293742,
+    "avg_loan_size": 43174.41544,
+    "avg_processing_time": 3.4964800000000005
+  },
+  "group_B": {
+    "n": 2500,
+    "approval_rate": 0.7044,
+    "default_rate": 0.0925610448608745,
+    "avg_loan_size": 43420.189007999994,
+    "avg_processing_time": 3.4988
+  },
+  "tests": {
+    "approval_rate": {
+      "rate_A": 0.6264,
+      "rate_B": 0.7044,
+      "difference": 0.07800000000000007,
+      "z_statistic": 5.844471465487927,
+      "p_value": 5.08179143210441e-09,
+      "ci_95_lower": 0.05193144943739303,
+      "ci_95_upper": 0.10406855056260711,
+      "significant": true
     },
-    "B": {
-      "n": 5000,
-      "approval_rate": 0.7048,
-      "default_rate": 0.08967082860385925,
-      "avg_loan_size": 50958.13271947283,
-      "avg_processing_time": 2.186056186152696
+    "default_rate": {
+      "rate_A": 0.10983397190293742,
+      "rate_B": 0.0925610448608745,
+      "difference": -0.017272927042062916,
+      "z_statistic": -2.0249014969490493,
+      "p_value": 0.04287747987500823,
+      "ci_95_lower": -0.033985371038428136,
+      "ci_95_upper": -0.0005604830456976927,
+      "significant": true
     }
-  },
-  "approval_rate_analysis": {
-    "metric": "Approval Rate",
-    "group_A_proportion": 0.6202,
-    "group_B_proportion": 0.7048,
-    "n_A": 5000,
-    "n_B": 5000,
-    "z_statistic": 8.945621886900666,
-    "p_value": 0,
-    "ci_lower": 0.06613865986081946,
-    "ci_upper": 0.10306134013918056,
-    "significant": true,
-    "power": 0.9999999999985824,
-    "mde": 99.05099528998365,
-    "effect_direction": "higher",
-    "treatment_effect": 0.08460000000000001
-  },
-  "default_rate_analysis": {
-    "metric": "Default Rate",
-    "group_A_proportion": 0.10899709771041599,
-    "group_B_proportion": 0.08967082860385925,
-    "n_A": 5000,
-    "n_B": 5000,
-    "z_statistic": -3.2306302274175698,
-    "p_value": 0.0012351762180164982,
-    "ci_lower": -0.031045041168139612,
-    "ci_upper": -0.007607497044973873,
-    "significant": true,
-    "power": 0.8980763999558392,
-    "mde": 99.05099528998365,
-    "effect_direction": "lower",
-    "treatment_effect": -0.019326269106556743
-  },
-  "alpha": 0.05
+  }
 }
