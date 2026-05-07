@@ -1,83 +1,91 @@
-"""Generate synthetic credit eligibility data for A/B testing."""
+"""
+Generate synthetic loan applicant data for A/B testing.
+"""
+
 import numpy as np
-import pandas as pd
 
 np.random.seed(42)
 
+N = 5000
+n_a = N // 2  # 2500
+n_b = N // 2  # 2500
 
-def generate_credit_data(n=5000, p_approval_a=0.62, p_default_a=0.11,
-                          p_approval_b=0.71, p_default_b=0.09):
-    """
-    Generate synthetic loan application data for two groups.
+# ── Loan amounts ───────────────────────────────────────────────
+base_loan_a = np.random.normal(85_000, 40_000, n_a)
+base_loan_b = np.random.normal(90_000, 42_000, n_b)
 
-    Parameters
-    ----------
-    n : int
-        Total number of records (split evenly between A and B)
-    p_approval_a, p_approval_b : float
-        True approval probabilities for group A and B
-    p_default_a, p_default_b : float
-        True default probabilities for group A and B
+# ── Approval outcomes (Bernoulli with target rates) ─────────────
+approved_a = np.random.binomial(1, 0.62, n_a)
+approved_b = np.random.binomial(1, 0.71, n_b)
 
-    Returns
-    -------
-    pd.DataFrame
-    """
-    half = n // 2
+# ── Default outcomes (only among approved, Bernoulli) ──────────
+defaulted_a = np.where(
+    approved_a == 1,
+    np.random.binomial(1, 0.11, n_a),
+    0,
+)
+defaulted_b = np.where(
+    approved_b == 1,
+    np.random.binomial(1, 0.09, n_b),
+    0,
+)
 
-    # Group A (control)
-    approved_a = np.random.random(half) < p_approval_a
-    defaulted_a = approved_a & (np.random.random(half) < p_default_a)
-    approved_and_not_default_a = approved_a & ~defaulted_a
+# ── Processing time (hours, log-normal) ────────────────────────
+processing_a = np.random.lognormal(mean=np.log(3.5), sigma=0.55, size=n_a)
+processing_b = np.random.lognormal(mean=np.log(3.2), sigma=0.50, size=n_b)
 
-    # Group B (treatment)
-    approved_b = np.random.random(half) < p_approval_b
-    defaulted_b = approved_b & (np.random.random(half) < p_default_b)
-    approved_and_not_default_b = approved_b & ~defaulted_b
+# ── Loan amounts (approved only) ──────────────────────────────
+loan_size_a = np.where(approved_a == 1, np.clip(base_loan_a, 5_000, 500_000), 0.0)
+loan_size_b = np.where(approved_b == 1, np.clip(base_loan_b, 5_000, 500_000), 0.0)
 
-    # Loan sizes (in Rands, realistic South African lending scale)
-    base_loan_a = np.random.lognormal(mean=11.0, sigma=0.9, size=half)
-    base_loan_b = np.random.lognormal(mean=11.2, sigma=0.9, size=half)
+# ── Pack into dicts ─────────────────────────────────────────────
+data_a = {
+    "group": "A",
+    "approved": approved_a,
+    "defaulted": defaulted_a,
+    "loan_size": loan_size_a,
+    "processing_time": processing_a,
+}
 
-    # Processing time in hours (A slightly slower)
-    processing_time_a = np.random.exponential(scale=2.5, size=half) + 0.5
-    processing_time_b = np.random.exponential(scale=2.2, size=half) + 0.5
-
-    df_a = pd.DataFrame({
-        "group": "A",
-        "approved": approved_a,
-        "defaulted": defaulted_a,
-        "approved_not_defaulted": approved_and_not_default_a,
-        "loan_size": np.round(base_loan_a, 2),
-        "processing_time_hrs": np.round(processing_time_a, 2),
-    })
-
-    df_b = pd.DataFrame({
-        "group": "B",
-        "approved": approved_b,
-        "defaulted": defaulted_b,
-        "approved_not_defaulted": approved_and_not_default_b,
-        "loan_size": np.round(base_loan_b, 2),
-        "processing_time_hrs": np.round(processing_time_b, 2),
-    })
-
-    return pd.concat([df_a, df_b], ignore_index=True)
+data_b = {
+    "group": "B",
+    "approved": approved_b,
+    "defaulted": defaulted_b,
+    "loan_size": loan_size_b,
+    "processing_time": processing_b,
+}
 
 
-def compute_group_summary(df):
-    """Compute summary statistics per group."""
-    summaries = {}
-    for group, gdf in df.groupby("group"):
-        approved = gdf["approved"].sum()
-        defaulted = gdf["defaulted"].sum()
-        n = len(gdf)
-        n_approved = approved
-        n_defaulted = defaulted
-        summaries[group] = {
-            "n": n,
-            "approval_rate": approved / n,
-            "default_rate": defaulted / n_approved if n_approved > 0 else 0.0,
-            "avg_loan_size": gdf.loc[gdf["approved"], "loan_size"].mean(),
-            "avg_processing_time": gdf["processing_time_hrs"].mean(),
-        }
-    return summaries
+def compute_summary(data):
+    approved = data["approved"]
+    defaulted = data["defaulted"]
+    loan_size = data["loan_size"]
+    processing_time = data["processing_time"]
+
+    n = len(approved)
+    n_approved = int(approved.sum())
+    n_defaulted = int(defaulted.sum())
+
+    return {
+        "group": data["group"],
+        "n": n,
+        "n_approved": n_approved,
+        "approval_rate": n_approved / n,
+        "default_rate": n_defaulted / n_approved if n_approved > 0 else 0.0,
+        "avg_loan_size": float(loan_size[approved == 1].mean()) if n_approved > 0 else 0.0,
+        "avg_processing_time": float(processing_time[approved == 1].mean()) if n_approved > 0 else 0.0,
+    }
+
+
+summary_a = compute_summary(data_a)
+summary_b = compute_summary(data_b)
+
+
+if __name__ == "__main__":
+    print("=== Group A (Control) Summary ===")
+    for k, v in summary_a.items():
+        print(f"  {k}: {v}")
+
+    print("\n=== Group B (Treatment) Summary ===")
+    for k, v in summary_b.items():
+        print(f"  {k}: {v}")

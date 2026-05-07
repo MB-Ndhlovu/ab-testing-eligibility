@@ -2,41 +2,55 @@
 
 ## Business Problem
 
-A lender wants to evaluate whether a new credit eligibility model (Group B) outperforms their current model (Group A). The goal is to make data-driven decisions about adopting the new model by rigorously testing the difference in key business metrics.
+A lender wants to test whether a new credit eligibility model (Group B) outperforms the current model (Group A). The goal is to determine if the new model:
 
-## Metrics Under Test
+1. Increases **approval rate** (good for business — more loans approved)
+2. Lowers **default rate** (good for risk management — fewer defaults)
 
-| Metric | Group A (Control) | Group B (Treatment) | Direction |
-|--------|------------------|---------------------|-----------|
-| Approval Rate | ~62% | ~71% | Higher is better |
-| Default Rate | ~11% | ~9% | Lower is better |
-| Avg Loan Size | Simulated | Simulated | Contextual |
-| Processing Time | Simulated | Simulated | Lower is better |
+If the new model is statistically significantly better on both metrics, the lender will adopt it.
+
+---
 
 ## Methodology
 
-### Statistical Approach
-- **Test**: Two-Proportion Z-Test (for approval_rate and default_rate)
-- **Significance Level**: α = 0.05
-- **Confidence Intervals**: 95% CI for the difference between proportions
+### Experiment Design
 
-### Key Outputs
-- Z-statistic and p-value for each metric
-- 95% Confidence Interval for the treatment effect
-- Statistical power and minimum detectable effect (MDE)
-- Clear GO/NO-GO recommendation per metric
+- **Population**: 5,000 loan applicants, randomly split 50/50 into two groups
+- **Group A (Control)**: Current eligibility model
+- **Group B (Treatment)**: New eligibility model
+- **Metrics**:
+  - `approval_rate` — proportion of applicants approved
+  - `default_rate` — proportion of approved loans that default
+  - `avg_loan_size` — average approved loan amount
+  - `avg_processing_time` — average processing time in hours
 
-## Project Structure
+### Target Outcomes
 
-```
-ab-testing-eligibility/
-├── README.md
-├── requirements.txt
-├── run_pipeline.py
-└── src/
-    ├── __init__.py
-    ├── data_generator.py   # Generate 5000 synthetic loan records
-    ├── statistical.py     # Z-test, CI, power, MDE calculations
-    ├── simulate.py        # Run experiment and compute effects
-    └── report.py          # Human-readable summary
-```
+| Metric | Group A (Control) | Group B (Treatment) |
+|---|---|---|
+| Approval Rate | ~62% | ~71% |
+| Default Rate | ~11% | ~9% |
+
+### Statistical Test
+
+For each of `approval_rate` and `default_rate`, we run a **two-proportion z-test**:
+
+- **Null hypothesis (H₀)**: p_B - p_A = 0 (no difference)
+- **Alternative hypothesis (H₁)**: p_B - p_A ≠ 0 (two-sided)
+- **Significance level**: α = 0.05
+
+**Test statistics:**
+- Pooled proportion: p̂_pooled = (x_A + x_B) / (n_A + n_B)
+- Standard error: SE = √(p̂_pooled × (1 - p̂_pooled) × (1/n_A + 1/n_B))
+- Z-statistic: Z = (p̂_B - p̂_A) / SE
+
+**Reported:**
+- Z-statistic
+- P-value (two-tailed)
+- 95% confidence interval for the difference (p_B - p_A)
+- Decision: Reject or fail to reject H₀ at α = 0.05
+
+### Additional Outputs
+
+- Statistical power (1 - β) at α = 0.05
+- Minimum detectable effect (MDE) at 80% power

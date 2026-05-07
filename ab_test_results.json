@@ -1,33 +1,64 @@
 {
-  "n_total": 5000,
-  "group_a": {
+  "summary_a": {
+    "group": "A",
     "n": 2500,
-    "approval_rate": 0.6188,
-    "default_rate": 0.11247575953458307,
-    "avg_loan_size": 91969.08606981255,
-    "avg_processing_time": 3.069188
+    "n_approved": 1624,
+    "approval_rate": 0.6496,
+    "default_rate": 0.1145320197044335,
+    "avg_loan_size": 87260.36998674927,
+    "avg_processing_time": 4.179432458009706
   },
-  "group_b": {
+  "summary_b": {
+    "group": "B",
     "n": 2500,
-    "approval_rate": 0.7228,
-    "default_rate": 0.08909795240730492,
-    "avg_loan_size": 108794.16286662978,
-    "avg_processing_time": 2.7767239999999997
+    "n_approved": 1774,
+    "approval_rate": 0.7096,
+    "default_rate": 0.09244644870349493,
+    "avg_loan_size": 89368.82880144259,
+    "avg_processing_time": 3.678142535740779
   },
-  "approval_rate_test": {
-    "z_statistic": 7.8246,
-    "p_value": 0.0,
-    "ci_95_lower": 0.0781,
-    "ci_95_upper": 0.1299,
-    "significant": true
-  },
-  "default_rate_test": {
-    "z_statistic": -2.2509,
-    "p_value": 0.024392,
-    "ci_95_lower": -0.0439,
-    "ci_95_upper": -0.0029,
-    "significant": true
-  },
-  "power_approval": 1.0,
-  "mde_approval": 0.0396
+  "tests": {
+    "approval_rate": {
+      "group_a_rate": 0.6496,
+      "group_b_rate": 0.7096,
+      "diff": 0.06000000000000005,
+      "z_stat": 4.54604068435417,
+      "p_value": 5.466447425828136e-06,
+      "ci_95": [
+        0.034185326933990706,
+        0.0858146730660094
+      ],
+      "significant": 1.0,
+      "power": 0.9945734199264508,
+      "mde": 0.03780540436828345
+    },
+    "default_rate": {
+      "group_a_rate": 0.1145320197044335,
+      "group_b_rate": 0.09244644870349493,
+      "diff": -0.022085571000938567,
+      "z_stat": -2.1156734495839866,
+      "p_value": 0.034372590187208285,
+      "ci_95": [
+        -0.04261769019461503,
+        -0.0015534518072621017
+      ],
+      "significant": 1.0,
+      "power": 0.5069209670524225,
+      "mde": 0.03130946977413604
+    },
+    "avg_loan_size": {
+      "group_a_mean": 87260.36998674927,
+      "group_b_mean": 89368.82880144259,
+      "diff": 2108.458814693324,
+      "t_stat": -1.5441267764920812,
+      "p_value": 0.1226507973861437
+    },
+    "avg_processing_time": {
+      "group_a_mean": 4.179432458009706,
+      "group_b_mean": 3.678142535740779,
+      "diff": -0.5012899222689269,
+      "t_stat": 6.377679475093123,
+      "p_value": 2.0408114650007223e-10
+    }
+  }
 }
