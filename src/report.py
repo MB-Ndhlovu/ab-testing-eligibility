@@ -1,57 +1,69 @@
-"""Generate a human-readable summary report."""
-from .simulate import run_simulation
-
-
-ALPHA = 0.05
-
-
-def format_result(name, result):
-    """Build a readable text block for a single z-test result."""
-    significant = result['p_value'] < ALPHA
-    verdict = 'SIGNIFICANT' if significant else 'NOT SIGNIFICANT'
-    symbol = '✓' if significant else '✗'
-
-    return f"""
---- {name} ---
-  Group A rate : {result['p_A']:.4f}
-  Group B rate : {result['p_B']:.4f}
-  Difference (B−A): {result['diff']:+.4f}
-  Z-statistic   : {result['z_statistic']}
-  P-value       : {result['p_value']:.6f}
-  95% CI        : [{result['ci_lower']:.4f}, {result['ci_upper']:.4f}]
-  Conclusion     : {verdict} at α={ALPHA} {symbol}
+"""
+Generate a human-readable summary report from the experiment results.
 """
 
+from src.simulate import run_experiment
 
-def generate_report():
-    """Return a formatted multi-line string report."""
-    r = run_simulation()
 
-    lines = [
-        '=' * 60,
-        '  A/B TESTING FRAMEWORK — CREDIT ELIGIBILITY',
-        '  Pipeline Report',
-        '=' * 60,
-        '',
-        'GROUP SUMMARY',
-        f"  Group A (control)  n={r['group_A']['n']}",
-        f"    Approval rate   : {r['group_A']['approval_rate']:.4f}",
-        f"    Default rate    : {r['group_A']['default_rate']:.4f}",
-        f"    Avg loan size   : R{r['group_A']['avg_loan_size']:,.2f}",
-        f"    Avg proc. time  : {r['group_A']['avg_processing_time']:.2f} hrs",
-        '',
-        f"  Group B (treatment) n={r['group_B']['n']}",
-        f"    Approval rate   : {r['group_B']['approval_rate']:.4f}",
-        f"    Default rate    : {r['group_B']['default_rate']:.4f}",
-        f"    Avg loan size   : R{r['group_B']['avg_loan_size']:,.2f}",
-        f"    Avg proc. time  : {r['group_B']['avg_processing_time']:.2f} hrs",
-        '',
-        '=' * 60,
-        'STATISTICAL TESTS (Two-proportion Z-test, α=0.05)',
-        format_result('Approval Rate', r['approval_rate_test']),
-        format_result('Default Rate', r['default_rate_test']),
-        f"  Minimum detectable effect @ 80% power: {r['mde_at_80_power']:.4f}",
-        '',
-        '=' * 60,
-    ]
-    return '\n'.join(lines)
+def generate_report(results: dict) -> str:
+    """Build a formatted text report."""
+    lines = []
+    sep = "=" * 60
+    thin = "-" * 60
+
+    lines.append(sep)
+    lines.append("  A/B TESTING FRAMEWORK — CREDIT ELIGIBILITY")
+    lines.append("  Experiment Summary Report")
+    lines.append(sep)
+    lines.append("")
+
+    # Sample info
+    lines.append(f"  Sample size per group : {results['n_per_group']:,}")
+    lines.append("")
+
+    # --- Group metrics ---
+    lines.append("GROUP METRICS")
+    lines.append(thin)
+    ma = results["metrics_A"]
+    mb = results["metrics_B"]
+
+    lines.append(f"                    Group A (Control)   Group B (Treatment)")
+    lines.append(f"  Approval rate      {ma['approval_rate']:>17.2%}   {mb['approval_rate']:>17.2%}")
+    lines.append(f"  Default rate       {ma['default_rate']:>17.2%}   {mb['default_rate']:>17.2%}")
+    lines.append(f"  Avg loan size      R{ma['avg_loan_size']:>14,.0f}   R{mb['avg_loan_size']:>14,.0f}")
+    lines.append(f"  Avg proc. time     {ma['avg_processing_time']:>16.1f}s   {mb['avg_processing_time']:>16.1f}s")
+    lines.append("")
+
+    # --- Statistical test for approval rate ---
+    lines.append("STATISTICAL TEST: APPROVAL RATE")
+    lines.append(thin)
+    ar = results["approval_rate_test"]
+    sig = "SIGNIFICANT" if ar["significant"] else "NOT SIGNIFICANT"
+    lines.append(f"  Z-statistic        : {ar['z_stat']:.4f}")
+    lines.append(f"  P-value            : {ar['p_value']:.6f}  (α = 0.05)")
+    lines.append(f"  95% CI             : [{ar['ci_lower']:+.4f}, {ar['ci_upper']:+.4f}]")
+    lines.append(f"  MDE (80% power)    : {ar['mde']:.4f}")
+    lines.append(f"  Power at obs. MDE  : {ar['power_at_obs_mde']:.4f}")
+    lines.append(f"  Conclusion         : {sig}")
+    lines.append("")
+
+    # --- Statistical test for default rate ---
+    lines.append("STATISTICAL TEST: DEFAULT RATE")
+    lines.append(thin)
+    dr = results["default_rate_test"]
+    sig_dr = "SIGNIFICANT" if dr["significant"] else "NOT SIGNIFICANT"
+    lines.append(f"  Z-statistic        : {dr['z_stat']:.4f}")
+    lines.append(f"  P-value            : {dr['p_value']:.6f}  (α = 0.05)")
+    lines.append(f"  95% CI             : [{dr['ci_lower']:+.4f}, {dr['ci_upper']:+.4f}]")
+    lines.append(f"  MDE (80% power)    : {dr['mde']:.4f}")
+    lines.append(f"  Power at obs. MDE  : {dr['power_at_obs_mde']:.4f}")
+    lines.append(f"  Conclusion         : {sig_dr}")
+    lines.append("")
+    lines.append(sep)
+
+    return "\n".join(lines)
+
+
+if __name__ == "__main__":
+    results = run_experiment()
+    print(generate_report(results))

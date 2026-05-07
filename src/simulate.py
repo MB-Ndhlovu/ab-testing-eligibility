@@ -1,63 +1,79 @@
-"""Run the A/B experiment simulation and compute treatment effects."""
-import json
-from pathlib import Path
+"""
+Run the A/B experiment simulation: compute metrics and run statistical tests.
+"""
 
-from .data_generator import generate_data
-from .statistical import two_proportion_ztest, power_min_detectable_effect
+import numpy as np
+from src.data_generator import generate_data, compute_group_metrics
+from src.statistical import (
+    two_proportion_ztest,
+    confidence_interval_diff,
+    min_detectable_effect,
+    statistical_power,
+)
 
 
-def run_simulation(seed=42):
-    """Generate data and run statistical tests for all metrics.
+def run_experiment() -> dict:
+    """
+    Execute the full A/B test simulation.
 
     Returns
     -------
-    dict with metrics, group summaries, and test results
+    results : dict — metrics for both groups and statistical test results
     """
-    df = generate_data()
+    group_A, group_B = generate_data()
 
-    # Group summaries
-    def grp_summary(g):
-        gdf = df[df['group'] == g]
-        n = len(gdf)
-        approved = int(gdf['approved'].sum())
-        defaulted = int(gdf['defaulted'].sum())
-        defaulted = min(defaulted, approved)  # can't default more than approved
-        avg_loan = float(gdf['loan_size'].mean())
-        avg_proc = float(gdf['processing_time_hours'].mean())
-        return {
-            'n': n,
-            'approval_rate': round(approved / n, 6),
-            'default_rate': round(defaulted / approved, 6) if approved > 0 else 0.0,
-            'avg_loan_size': round(avg_loan, 2),
-            'avg_processing_time': round(avg_proc, 4),
-            'approved': approved,
-            'defaulted': defaulted,
-        }
+    metrics_A = compute_group_metrics(group_A)
+    metrics_B = compute_group_metrics(group_B)
 
-    summary_A = grp_summary('A')
-    summary_B = grp_summary('B')
+    # Approval rate test
+    n_A = metrics_A["n"]
+    n_B = metrics_B["n"]
+    approved_A = int(metrics_A["approval_rate"] * n_A)
+    approved_B = int(metrics_B["approval_rate"] * n_B)
 
-    # Two-proportion z-tests
-    approval_test = two_proportion_ztest(
-        summary_A['n'], summary_A['approved'],
-        summary_B['n'], summary_B['approved'],
-    )
-    default_test = two_proportion_ztest(
-        summary_A['n'], summary_A['defaulted'],
-        summary_B['n'], summary_B['defaulted'],
-    )
+    approval_test = two_proportion_ztest(n_A, approved_A, n_B, approved_B)
+    approval_ci = confidence_interval_diff(n_A, approved_A, n_B, approved_B)
+    approval_mde = min_detectable_effect(n_A)
 
-    mde = power_min_detectable_effect(summary_A['n'], summary_B['n'])
+    # Default rate test (conditional on approval)
+    def_A = int(metrics_A["default_rate"] * approved_A)
+    def_B = int(metrics_B["default_rate"] * approved_B)
+
+    default_test = two_proportion_ztest(n_A, def_A, n_B, def_B)
+    default_ci = confidence_interval_diff(n_A, def_A, n_B, def_B)
+    default_mde = min_detectable_effect(n_A)
+
+    # Power at observed MDE
+    approval_obs_mde = abs(metrics_B["approval_rate"] - metrics_A["approval_rate"])
+    default_obs_mde = abs(metrics_B["default_rate"] - metrics_A["default_rate"])
+
+    approval_power = statistical_power(n_A, metrics_A["approval_rate"], approval_obs_mde)
+    default_power = statistical_power(n_A, metrics_A["default_rate"], default_obs_mde)
 
     return {
-        'group_A': summary_A,
-        'group_B': summary_B,
-        'approval_rate_test': approval_test,
-        'default_rate_test': default_test,
-        'mde_at_80_power': mde,
+        "n_per_group": n_A,
+        "metrics_A": metrics_A,
+        "metrics_B": metrics_B,
+        "approval_rate_test": {
+            "z_stat": approval_test["z_stat"],
+            "p_value": approval_test["p_value"],
+            "p_A": approval_test["p_A"],
+            "p_B": approval_test["p_B"],
+            "ci_lower": approval_ci[0],
+            "ci_upper": approval_ci[1],
+            "mde": approval_mde,
+            "power_at_obs_mde": approval_power,
+            "significant": approval_test["p_value"] < 0.05,
+        },
+        "default_rate_test": {
+            "z_stat": default_test["z_stat"],
+            "p_value": default_test["p_value"],
+            "p_A": default_test["p_A"],
+            "p_B": default_test["p_B"],
+            "ci_lower": default_ci[0],
+            "ci_upper": default_ci[1],
+            "mde": default_mde,
+            "power_at_obs_mde": default_power,
+            "significant": default_test["p_value"] < 0.05,
+        },
     }
-
-
-def save_results(results, path='results.json'):
-    with open(path, 'w') as f:
-        json.dump(results, f, indent=2, default=str)
