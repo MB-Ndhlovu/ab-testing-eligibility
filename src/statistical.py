@@ -1,117 +1,90 @@
 """
-Statistical analysis for A/B testing: two-proportion z-test, confidence intervals,
-power analysis, and minimum detectable effect.
+Statistical analysis: two-proportion z-test, confidence intervals, power analysis.
 """
-
 import numpy as np
 from scipy import stats
 
 
-def two_proportion_ztest(n_control, p_control, n_treatment, p_treatment):
+def two_proportion_ztest(n1, p1, n2, p2):
     """
-    Two-proportion z-test comparing treatment vs control.
+    Two-proportion z-test.
 
     Args:
-        n_control: Number of trials in control group
-        p_control: Observed proportion in control group
-        n_treatment: Number of trials in treatment group
-        p_treatment: Observed proportion in treatment group
+        n1: Sample size group 1
+        p1: Proportion success group 1
+        n2: Sample size group 2
+        p2: Proportion success group 2
 
     Returns:
-        dict with z_statistic, p_value, ci_95 (tuple), significance (bool)
+        dict with z_statistic, p_value (two-tailed)
     """
-    p_pooled = (n_control * p_control + n_treatment * p_treatment) / (n_control + n_treatment)
-    se = np.sqrt(p_pooled * (1 - p_pooled) * (1/n_control + 1/n_treatment))
-
+    p_pool = (n1 * p1 + n2 * p2) / (n1 + n2)
+    se = np.sqrt(p_pool * (1 - p_pool) * (1/n1 + 1/n2))
     if se == 0:
-        return {
-            'z_statistic': 0.0,
-            'p_value': 1.0,
-            'ci_95': (0.0, 0.0),
-            'significant': False,
-            'p_pooled': p_pooled,
-            'se': se
-        }
-
-    z_stat = (p_treatment - p_control) / se
-    p_value = 2 * (1 - stats.norm.cdf(abs(z_stat)))  # two-tailed
-
-    # 95% CI for the difference
-    diff = p_treatment - p_control
-    se_diff = np.sqrt(p_control * (1 - p_control) / n_control + p_treatment * (1 - p_treatment) / n_treatment)
-    ci_lower = diff - 1.96 * se_diff
-    ci_upper = diff + 1.96 * se_diff
-
-    return {
-        'z_statistic': float(z_stat),
-        'p_value': float(p_value),
-        'ci_95': (float(ci_lower), float(ci_upper)),
-        'significant': bool(p_value < 0.05),
-        'p_pooled': float(p_pooled),
-        'se': float(se_diff)
-    }
+        return {'z_statistic': 0.0, 'p_value': 1.0, 'se': 0.0}
+    z = (p2 - p1) / se
+    p_value = 2 * (1 - stats.norm.cdf(abs(z)))
+    return {'z_statistic': z, 'p_value': p_value, 'se': se, 'p_pool': p_pool}
 
 
-def statistical_power(n_control, n_treatment, p_control, mde, alpha=0.05):
+def confidence_interval_diff(n1, p1, n2, p2, confidence=0.95):
     """
-    Calculate statistical power for a two-proportion z-test.
+    Confidence interval for difference in proportions (p2 - p1).
 
     Args:
-        n_control: Sample size control
-        n_treatment: Sample size treatment
-        p_control: Baseline proportion
-        mde: Minimum detectable effect (absolute change in proportion)
-        alpha: Significance level (default 0.05)
+        n1, p1: Group 1 size and proportion
+        n2, p2: Group 2 size and proportion
+        confidence: Confidence level (default 0.95)
 
     Returns:
-        float: power (0 to 1)
+        (lower, upper) tuple
     """
-    p_treatment = p_control + mde
-    se_null = np.sqrt(p_control * (1 - p_control) * (1/n_control + 1/n_treatment))
-    se_alt = np.sqrt(p_treatment * (1 - p_treatment) * (1/n_control + 1/n_treatment))
-
-    # Critical value
-    z_crit = stats.norm.ppf(1 - alpha / 2)
-
-    # Non-centrality parameter under alternative
-    effect = abs(mde)
-    power = 1 - stats.norm.cdf(z_crit - effect / se_alt) + stats.norm.cdf(-z_crit - effect / se_alt)
-    return float(power)
+    se = np.sqrt(p1 * (1 - p1) / n1 + p2 * (1 - p2) / n2)
+    if se == 0:
+        return (0.0, 0.0)
+    z = stats.norm.ppf((1 + confidence) / 2)
+    diff = p2 - p1
+    return (diff - z * se, diff + z * se)
 
 
-def minimum_detectable_effect(n_control, n_treatment, alpha=0.05, power=0.80, p_control=0.5):
+def statistical_power(n, p1, p2, alpha=0.05):
     """
-    Calculate minimum detectable effect for a given sample size and power.
+    Compute statistical power for two-proportion z-test.
 
     Args:
-        n_control: Sample size control
-        n_treatment: Sample size treatment
-        alpha: Significance level (default 0.05)
-        power: Desired power (default 0.80)
-        p_control: Baseline proportion (default 0.5 for most conservative estimate)
+        n: Sample size per group (assumes equal groups)
+        p1: Baseline proportion
+        p2: Treatment proportion
+        alpha: Significance level
 
     Returns:
-        float: MDE (absolute proportion change)
+        Power (probability of detecting true difference)
     """
-    z_crit = stats.norm.ppf(1 - alpha / 2)
+    p_pool = (p1 + p2) / 2
+    se = np.sqrt(p_pool * (1 - p_pool) * (2 / n))
+    if se == 0:
+        return 0.0
+    z_alpha = stats.norm.ppf(1 - alpha / 2)
+    diff = abs(p2 - p1)
+    z_beta = (diff / se) - z_alpha
+    power = stats.norm.cdf(z_beta)
+    return power
+
+
+def minimum_detectable_effect(n, alpha=0.05, power=0.80):
+    """
+    Minimum detectable effect (MDE) for given sample size.
+
+    Args:
+        n: Sample size per group
+        alpha: Significance level
+        power: Desired power
+
+    Returns:
+        Minimum detectable absolute difference in proportions
+    """
+    z_alpha = stats.norm.ppf(1 - alpha / 2)
     z_beta = stats.norm.ppf(power)
-
-    se = np.sqrt(p_control * (1 - p_control) * (1/n_control + 1/n_treatment))
-    mde = (z_crit + z_beta) * se
-    return float(mde)
-
-
-if __name__ == '__main__':
-    # Demo
-    result = two_proportion_ztest(n_control=2500, p_control=0.62, n_treatment=2500, p_treatment=0.71)
-    print("=== Two-Proportion Z-Test Demo ===")
-    print(f"z-statistic: {result['z_statistic']:.4f}")
-    print(f"p-value:     {result['p_value']:.6f}")
-    print(f"95% CI:      ({result['ci_95'][0]:.4f}, {result['ci_95'][1]:.4f})")
-    print(f"Significant: {result['significant']}")
-
-    mde = minimum_detectable_effect(2500, 2500, alpha=0.05, power=0.80, p_control=0.62)
-    print(f"\nMDE for 80% power: {mde:.4f} ({mde*100:.2f}pp)")
-
-    pwr = statistical_power(2500, 2500, p_control=0.62, mde=0.09, alpha=0.05)
-    print(f"Power for observed effect (0.09): {pwr:.4f}")
+    p = 0.5  # conservative estimate
+    mde = (z_alpha + z_beta) * np.sqrt(2 * p * (1 - p) / n)
+    return mde

@@ -2,39 +2,34 @@
 
 ## Business Problem
 
-A lender wants to evaluate whether a new credit eligibility model (Group B) outperforms their current model (Group A). The new model is expected to:
-- Increase approval rates (approve more creditworthy applicants)
-- Reduce default rates (better risk selection)
+A lender wants to test whether a new credit eligibility model (treatment group B) improves outcomes compared to their current model (control group A).
 
-## Objective
+**Key Metrics:**
+- **Approval Rate**: Higher is better (more loans approved)
+- **Default Rate**: Lower is better (fewer defaults)
 
-Run a controlled A/B experiment to determine if the differences in approval rate and default rate between the two models are statistically significant at α = 0.05.
+**Hypothesis:**
+- H0 (null): No difference between models
+- H1 (alternative): Treatment B differs from control A
 
 ## Methodology
 
-### Data Generation
-- 5,000 synthetic applicants split evenly: 2,500 in Group A (control) and 2,500 in Group B (treatment)
-- Group A (current model): approval_rate ≈ 0.62, default_rate ≈ 0.11
-- Group B (new model): approval_rate ≈ 0.71, default_rate ≈ 0.09
-- Realistic noise added via Bernoulli trials with specified probabilities
+1. **Data Generation**: Simulate 5,000 loan applications split evenly into control (A) and treatment (B) groups
+2. **Synthetic Outcomes**: Assign approval/default outcomes using probabilistic models with realistic noise
+3. **Statistical Testing**: Two-proportion z-test for each metric
+4. **Reporting**: Confidence intervals, p-values, and statistical conclusions at α=0.05
 
-### Statistical Testing
-Two-proportion z-test for each metric:
-- **Approval Rate**: Tests whether the new model approves a significantly higher proportion of applicants
-- **Default Rate**: Tests whether the new model achieves a significantly lower default rate
+## Target Metrics
 
-### Metrics Reported
-For each metric:
-- Observed rates for both groups
-- Z-statistic
-- Two-tailed p-value
-- 95% confidence interval for the difference
-- Statistical conclusion (significant / not significant)
+| Metric | Group A (Control) | Group B (Treatment) |
+|--------|-------------------|---------------------|
+| Approval Rate | ~62% | ~71% |
+| Default Rate | ~11% | ~9% |
 
 ## Files
 
-- `src/data_generator.py` — Generates synthetic loan applicant data
-- `src/statistical.py` — Two-proportion z-test, confidence intervals, power analysis
-- `src/simulate.py` — Runs experiment simulation and computes treatment effects
-- `src/report.py` — Generates a readable summary report
-- `run_pipeline.py` — Executes the full pipeline end-to-end
+- `src/data_generator.py` — Generate synthetic loan data
+- `src/statistical.py` — Z-test, confidence intervals, power analysis
+- `src/simulate.py` — Run experiment simulation
+- `src/report.py` — Generate summary report
+- `run_pipeline.py` — Execute full pipeline
