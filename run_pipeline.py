@@ -1,63 +1,40 @@
-#!/usr/bin/env python3
-"""
-Execute the full A/B test pipeline.
-
-Usage:
-    python run_pipeline.py
-"""
-
+"""Execute the full A/B testing pipeline end-to-end."""
 import json
-import os
-from src.simulate import run_experiment
-from src.report import generate_report, save_json_results
+import sys
+from pathlib import Path
+
+# Add project root to path so src/ is importable
+sys.path.insert(0, str(Path(__file__).parent))
+
+from src.report import generate_report
+from src.simulate import run_simulation, save_results
 
 
 def main():
-    print("Starting A/B Testing Pipeline...")
-    print()
+    project_root = Path(__file__).parent
+    output_json = project_root / 'results.json'
 
-    # Run experiment
-    print("Running experiment simulation...")
-    results = run_experiment(n=5000, seed=42, alpha=0.05)
+    print("Running A/B test pipeline ...")
+    results = run_simulation()
+    save_results(results, output_json)
+    print(f"JSON results saved → {output_json}")
 
-    # Generate report
-    print("Generating report...")
-    report = generate_report(results)
+    report = generate_report()
     print(report)
 
-    # Save outputs
-    output_dir = os.path.dirname(os.path.abspath(__file__))
+    # Print machine-readable summary for Telegram
+    ar = results['approval_rate_test']
+    dr = results['default_rate_test']
 
-    json_path = os.path.join(output_dir, 'results.json')
-    save_json_results(results, json_path)
-    print(f"\nResults saved to: {json_path}")
+    ar_sig = '✓ SIGNIFICANT' if ar['p_value'] < 0.05 else '✗ not significant'
+    dr_sig = '✓ SIGNIFICANT' if dr['p_value'] < 0.05 else '✗ not significant'
 
-    report_path = os.path.join(output_dir, 'report.txt')
-    with open(report_path, 'w') as f:
-        f.write(report)
-    print(f"Report saved to: {report_path}")
-
-    # Summary for Telegram
-    approval_sig = results['tests']['approval_rate']['significant']
-    default_sig = results['tests']['default_rate']['significant']
-    approval_diff = results['tests']['approval_rate']['difference']
-    default_diff = results['tests']['default_rate']['difference']
-
-    print("\n" + "=" * 60)
-    print("TELEGRAM SUMMARY:")
-    print("=" * 60)
-    print(f"Approval Rate: {'SIGNIFICANT' if approval_sig else 'NOT SIGNIFICANT'} (diff: {approval_diff:+.4f})")
-    print(f"Default Rate:  {'SIGNIFICANT' if default_sig else 'NOT SIGNIFICANT'} (diff: {default_diff:+.4f})")
-
-    if approval_sig and default_sig and approval_diff > 0 and default_diff < 0:
-        print("Recommendation: ADOPT new model")
-    elif approval_sig or default_sig:
-        print("Recommendation: ADOPT with monitoring")
-    else:
-        print("Recommendation: No significant difference - more data needed")
-
-    return results
+    print("\n=== MACHINE SUMMARY ===")
+    print(f"Approval Rate : A={ar['p_A']:.4f} B={ar['p_B']:.4f} diff={ar['diff']:+.4f} "
+          f"p={ar['p_value']:.6f} [{ar['ci_lower']:.4f}, {ar['ci_upper']:.4f}] {ar_sig}")
+    print(f"Default Rate   : A={dr['p_A']:.4f} B={dr['p_B']:.4f} diff={dr['diff']:+.4f} "
+          f"p={dr['p_value']:.6f} [{dr['ci_lower']:.4f}, {dr['ci_upper']:.4f}] {dr_sig}")
 
 
 if __name__ == '__main__':
-    results = main()
+    main()

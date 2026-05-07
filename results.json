@@ -1,58 +1,39 @@
 {
-  "sample_size": {
-    "A": 2500,
-    "B": 2500
+  "group_A": {
+    "n": 2500,
+    "approval_rate": 0.626,
+    "default_rate": 0.102875,
+    "avg_loan_size": 58061.26,
+    "avg_processing_time": 19.4011,
+    "approved": 1565,
+    "defaulted": 161
   },
-  "approval_rate": {
-    "A": 0.6348,
-    "B": 0.706
+  "group_B": {
+    "n": 2500,
+    "approval_rate": 0.7164,
+    "default_rate": 0.088219,
+    "avg_loan_size": 61996.74,
+    "avg_processing_time": 14.5403,
+    "approved": 1791,
+    "defaulted": 158
   },
-  "default_rate": {
-    "A": 0.10144927536231885,
-    "B": 0.08158640226628895
+  "approval_rate_test": {
+    "z_statistic": 6.8035,
+    "p_value": 0.0,
+    "ci_lower": 0.064357,
+    "ci_upper": 0.116443,
+    "diff": 0.0904,
+    "p_A": 0.626,
+    "p_B": 0.7164
   },
-  "avg_loan_amount": {
-    "A": 80.33620909301668,
-    "B": 79.31816805016234
+  "default_rate_test": {
+    "z_statistic": -0.1736,
+    "p_value": 0.862182,
+    "ci_lower": -0.014748,
+    "ci_upper": 0.012348,
+    "diff": -0.0012,
+    "p_A": 0.0644,
+    "p_B": 0.0632
   },
-  "avg_processing_time": {
-    "A": 6.21489041969717,
-    "B": 6.280852717847382
-  },
-  "tests": {
-    "approval_rate": {
-      "p_A": 0.6348,
-      "p_B": 0.706,
-      "difference": 0.07119999999999993,
-      "z_statistic": 5.355183979887374,
-      "p_value": 8.546940555298477e-08,
-      "ci_95_lower": 0.045215604720247896,
-      "ci_95_upper": 0.09718439527975196,
-      "significant": "True"
-    },
-    "default_rate": {
-      "p_A": 0.10144927536231885,
-      "p_B": 0.08158640226628895,
-      "difference": -0.019862873096029895,
-      "z_statistic": -1.9964973787480795,
-      "p_value": 0.045879810791976006,
-      "ci_95_lower": -0.03945241543276985,
-      "ci_95_upper": -0.00027333075928993866,
-      "significant": "True"
-    }
-  },
-  "power_analysis": {
-    "approval_rate": {
-      "mde": 0.07119999999999993,
-      "power": 0.00033082161157360623
-    },
-    "default_rate": {
-      "mde": 0.019862873096029895,
-      "power": 0.3926658998071271
-    },
-    "sample_size_needed_80_power": {
-      "approval_rate": 685,
-      "default_rate": 3939
-    }
-  }
+  "mde_at_80_power": 0.0396
 }
