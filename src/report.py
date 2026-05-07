@@ -1,96 +1,188 @@
+"""
+Generate readable summary reports for A/B test results.
+"""
+
 import json
-import numpy as np
+from datetime import datetime
 
-def make_serializable(obj):
-    """Convert numpy types for JSON serialization."""
-    if isinstance(obj, (np.floating, float)):
-        return float(obj)
-    if isinstance(obj, (np.integer, int)):
-        return int(obj)
-    if isinstance(obj, tuple):
-        return list(obj)
-    if isinstance(obj, dict):
-        return {k: make_serializable(v) for k, v in obj.items()}
-    if isinstance(obj, list):
-        return [make_serializable(x) for x in obj]
-    return obj
 
-def generate_report(results):
-    """Generate human-readable summary of A/B test results."""
-    lines = []
-    lines.append("=" * 60)
-    lines.append("A/B TESTING FRAMEWORK — CREDIT ELIGIBILITY REPORT")
-    lines.append("=" * 60)
-    lines.append("")
+def generate_report(results, output_file=None):
+    """
+    Generate a formatted text report.
 
-    # Group summary
-    lines.append("GROUP SUMMARY")
-    lines.append("-" * 40)
-    for group, data in results['groups'].items():
-        lines.append(f"\n{group.upper()}")
-        lines.append(f"  Sample size:        {data['n']}")
-        lines.append(f"  Approval rate:      {data['approval_rate']:.4f}")
-        lines.append(f"  Default rate:       {data['default_rate']:.4f}")
-        lines.append(f"  Avg loan size:     ${data['avg_loan_size']:,.2f}")
-        lines.append(f"  Avg processing:    {data['avg_processing_time']:.2f} days")
+    Parameters:
+        results: dict from run_experiment
+        output_file: optional file path to save report
 
-    # Approval rate test
-    lines.append("\n" + "=" * 60)
-    lines.append("APPROVAL RATE TEST")
-    lines.append("-" * 40)
-    ar = results['approval_rate_test']
-    lines.append(f"  Z-statistic:        {ar['z_statistic']:.4f}")
-    lines.append(f"  P-value:            {ar['p_value']:.6f}")
-    lines.append(f"  95% CI for diff:   [{ar['ci_95'][0]:.6f}, {ar['ci_95'][1]:.6f}]")
-    lines.append(f"  Significant:        {'YES' if ar['significant'] else 'NO'} (alpha=0.05)")
+    Returns:
+        str: formatted report
+    """
+    # Import format_results from simulate
+    from src.simulate import format_results
 
-    # Default rate test
-    lines.append("\n" + "=" * 60)
-    lines.append("DEFAULT RATE TEST")
-    lines.append("-" * 40)
-    dr = results['default_rate_test']
-    lines.append(f"  Z-statistic:        {dr['z_statistic']:.4f}")
-    lines.append(f"  P-value:            {dr['p_value']:.6f}")
-    lines.append(f"  95% CI for diff:   [{dr['ci_95'][0]:.6f}, {dr['ci_95'][1]:.6f}]")
-    lines.append(f"  Significant:        {'YES' if dr['significant'] else 'NO'} (alpha=0.05)")
+    report_lines = []
 
-    # Power info
-    lines.append("\n" + "=" * 60)
-    lines.append("POWER ANALYSIS")
-    lines.append("-" * 40)
-    lines.append(f"  Power (approval test): {results['power']['approval_rate_test']:.4f}")
-    lines.append(f"  Min detectable effect:  {results['power']['mde_approval_rate']:.6f}")
+    # Header
+    report_lines.append("╔══════════════════════════════════════════════════════════════╗")
+    report_lines.append("║        A/B TESTING FRAMEWORK FOR CREDIT ELIGIBILITY          ║")
+    report_lines.append("║                    FINAL ANALYSIS REPORT                      ║")
+    report_lines.append("╚══════════════════════════════════════════════════════════════╝")
+    report_lines.append("")
+    report_lines.append(f"Report Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    report_lines.append("")
 
-    # Conclusion
-    lines.append("\n" + "=" * 60)
-    lines.append("CONCLUSION")
-    lines.append("-" * 40)
-    ar_sig = results['approval_rate_test']['significant']
-    dr_sig = results['default_rate_test']['significant']
-    ar_diff = results['groups']['treatment']['approval_rate'] - results['groups']['control']['approval_rate']
-    dr_diff = results['groups']['treatment']['default_rate'] - results['groups']['control']['default_rate']
+    # Executive Summary
+    report_lines.append("┌──────────────────────────────────────────────────────────────┐")
+    report_lines.append("│                     EXECUTIVE SUMMARY                        │")
+    report_lines.append("└──────────────────────────────────────────────────────────────┘")
 
-    if ar_sig and dr_sig:
-        lines.append("  Treatment is significantly better on BOTH metrics.")
-        lines.append(f"  Approval rate improved by {ar_diff:.4f} ({ar_diff*100:.2f}%)")
-        lines.append(f"  Default rate reduced by {abs(dr_diff):.4f} ({abs(dr_diff)*100:.2f}%)")
-        lines.append("  RECOMMENDATION: Deploy the new model (Group B).")
-    elif ar_sig:
-        lines.append("  Treatment has higher approval rate.")
-        lines.append("  But default rate difference is not significant.")
-        lines.append("  RECOMMENDATION: Further analysis needed.")
-    elif dr_sig:
-        lines.append("  Treatment has lower default rate.")
-        lines.append("  But approval rate difference is not significant.")
-        lines.append("  RECOMMENDATION: Further analysis needed.")
+    approval_sig = results['tests']['approval_rate']['significant']
+    default_sig = results['tests']['default_rate']['significant']
+    approval_diff = results['tests']['approval_rate']['difference']
+    default_diff = results['tests']['default_rate']['difference']
+
+    report_lines.append("")
+    report_lines.append(f"  • Approval Rate: {'SIGNIFICANT' if approval_sig else 'NOT SIGNIFICANT'}")
+    report_lines.append(f"    Difference: {approval_diff:+.4f} (B vs A)")
+    report_lines.append("")
+    report_lines.append(f"  • Default Rate:  {'SIGNIFICANT' if default_sig else 'NOT SIGNIFICANT'}")
+    report_lines.append(f"    Difference: {default_diff:+.4f} (B vs A)")
+    report_lines.append("")
+
+    # Sample overview
+    report_lines.append("┌──────────────────────────────────────────────────────────────┐")
+    report_lines.append("│                       SAMPLE OVERVIEW                        │")
+    report_lines.append("└──────────────────────────────────────────────────────────────┘")
+    report_lines.append("")
+    report_lines.append(f"  Group A (Control):   {results['sample_size']['A']:,} applicants")
+    report_lines.append(f"  Group B (Treatment): {results['sample_size']['B']:,} applicants")
+    report_lines.append(f"  Total:              {results['sample_size']['A'] + results['sample_size']['B']:,} applicants")
+    report_lines.append("")
+
+    # Key Metrics Table
+    report_lines.append("┌──────────────────────────────────────────────────────────────┐")
+    report_lines.append("│                         KEY METRICS                         │")
+    report_lines.append("└──────────────────────────────────────────────────────────────┘")
+    report_lines.append("")
+    report_lines.append(f"  {'Metric':<22} {'Group A':>10} {'Group B':>10} {'Diff':>10} {'Sig?':>6}")
+    report_lines.append(f"  {'-'*58}")
+
+    for metric in ['approval_rate', 'default_rate', 'avg_loan_amount', 'avg_processing_time']:
+        val_A = results[metric]['A']
+        val_B = results[metric]['B']
+        diff = val_B - val_A
+
+        test = results['tests'].get(metric, {})
+        sig = "Yes" if test.get('significant', False) else "No"
+
+        metric_name = metric.replace('_', ' ').title()
+        if metric in ['approval_rate', 'default_rate']:
+            report_lines.append(f"  {metric_name:<22} {val_A:>10.4f} {val_B:>10.4f} {diff:>+10.4f} {sig:>6}")
+        elif metric == 'avg_loan_amount':
+            report_lines.append(f"  {metric_name:<22} {val_A:>10.2f} {val_B:>10.2f} {diff:>+10.2f} {'N/A':>6}")
+        else:
+            report_lines.append(f"  {metric_name:<22} {val_A:>10.2f} {val_B:>10.2f} {diff:>+10.2f} {'N/A':>6}")
+
+    report_lines.append("")
+
+    # Statistical Test Details
+    report_lines.append("┌──────────────────────────────────────────────────────────────┐")
+    report_lines.append("│                  STATISTICAL TEST RESULTS                    │")
+    report_lines.append("└──────────────────────────────────────────────────────────────┘")
+
+    for metric, test_name in [('approval_rate', 'Approval Rate'), ('default_rate', 'Default Rate')]:
+        test = results['tests'][metric]
+        report_lines.append("")
+        report_lines.append(f"  {test_name} Z-Test:")
+        report_lines.append(f"    H₀: p_B - p_A = 0")
+        report_lines.append(f"    p̂_A = {test['p_A']:.4f}, p̂_B = {test['p_B']:.4f}")
+        report_lines.append(f"    Difference = {test['difference']:.4f}")
+        report_lines.append(f"    Z-statistic = {test['z_statistic']:.4f}")
+        report_lines.append(f"    P-value     = {test['p_value']:.6f}")
+        report_lines.append(f"    95% CI: [{test['ci_95_lower']:.4f}, {test['ci_95_upper']:.4f}]")
+        report_lines.append(f"    Result: {'REJECT H₀ - Significant difference' if test['significant'] else 'FAIL TO REJECT H₀ - No significant difference'}")
+
+    report_lines.append("")
+
+    # Power Analysis
+    report_lines.append("┌──────────────────────────────────────────────────────────────┐")
+    report_lines.append("│                      POWER ANALYSIS                         │")
+    report_lines.append("└──────────────────────────────────────────────────────────────┘")
+    report_lines.append("")
+
+    for metric in ['approval_rate', 'default_rate']:
+        pa = results['power_analysis'][metric]
+        metric_name = metric.replace('_', ' ').title()
+        report_lines.append(f"  {metric_name}:")
+        report_lines.append(f"    Observed MDE: {pa['mde']:.4f}")
+        report_lines.append(f"    Achieved Power: {pa['power']:.4f}")
+        report_lines.append(f"    Sample for 80% power: {results['power_analysis']['sample_size_needed_80_power'][metric]:,}")
+        report_lines.append("")
+
+    # Final Recommendation
+    report_lines.append("┌──────────────────────────────────────────────────────────────┐")
+    report_lines.append("│                  FINAL RECOMMENDATION                        │")
+    report_lines.append("└──────────────────────────────────────────────────────────────┘")
+    report_lines.append("")
+
+    if approval_sig and default_sig:
+        if approval_diff > 0 and default_diff < 0:
+            report_lines.append("  ★ RECOMMENDATION: ADOPT the new credit eligibility model")
+            report_lines.append("")
+            report_lines.append("    Justification:")
+            report_lines.append("    - Approval rate significantly increased (+{:.1f}%)".format(approval_diff * 100))
+            report_lines.append("    - Default rate significantly decreased (-{:.1f}%)".format(abs(default_diff) * 100))
+            report_lines.append("    - Both key metrics moved in favorable directions")
+        elif approval_diff > 0:
+            report_lines.append("  ⚠ CAUTION: Mixed results detected")
+            report_lines.append("")
+            report_lines.append("    - Approval rate improved significantly")
+            report_lines.append("    - Default rate worsened significantly")
+            report_lines.append("    - Further analysis required before adoption")
+        else:
+            report_lines.append("  ⚠ Mixed results - manual review required")
+    elif approval_sig:
+        report_lines.append("  ★ RECOMMENDATION: ADOPT with monitoring")
+        report_lines.append("")
+        report_lines.append("    Justification:")
+        report_lines.append("    - Approval rate significantly improved")
+        report_lines.append("    - Default rate change not statistically significant")
+        report_lines.append("    - Recommend monitoring default rate post-launch")
+    elif default_sig:
+        report_lines.append("  ★ RECOMMENDATION: ADOPT with monitoring")
+        report_lines.append("")
+        report_lines.append("    Justification:")
+        report_lines.append("    - Default rate significantly improved")
+        report_lines.append("    - Approval rate change not statistically significant")
+        report_lines.append("    - Recommend monitoring approval rate post-launch")
     else:
-        lines.append("  No statistically significant difference detected.")
-        lines.append("  RECOMMENDATION: Keep current model or run larger test.")
+        report_lines.append("  ⚠ NO SIGNIFICANT DIFFERENCE DETECTED")
+        report_lines.append("")
+        report_lines.append("    Neither metric showed statistically significant difference.")
+        report_lines.append("    Consider: increasing sample size, refining model, or")
+        report_lines.append("    accepting current performance as optimal.")
 
-    lines.append("=" * 60)
-    return "\n".join(lines)
+    report_lines.append("")
+    report_lines.append("─" * 62)
+    report_lines.append("End of Report")
 
-def save_results(results, filepath):
-    """Save results dict as JSON."""
-    with open(filepath, 'w') as f:
-        json.dump(make_serializable(results), f, indent=2)
+    report = "\n".join(report_lines)
+
+    if output_file:
+        with open(output_file, 'w') as f:
+            f.write(report)
+
+    return report
+
+
+def save_json_results(results, output_file):
+    """Save results as JSON."""
+    with open(output_file, 'w') as f:
+        json.dump(results, f, indent=2, default=str)
+
+
+if __name__ == '__main__':
+    from src.simulate import run_experiment
+    results = run_experiment()
+    report = generate_report(results)
+    print(report)

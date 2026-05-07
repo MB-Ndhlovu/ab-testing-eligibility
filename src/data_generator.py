@@ -1,83 +1,116 @@
+"""
+Generate synthetic loan application data for A/B test.
+"""
+
 import numpy as np
 import pandas as pd
 
-def generate_loan_data(n=5000, seed=42):
-    """Generate synthetic loan application data for A/B test.
 
-    Args:
-        n: Total number of applicants
-        seed: Random seed for reproducibility
+def generate_data(n=5000, seed=42):
+    """
+    Generate synthetic loan application data.
+
+    Parameters:
+        n: total number of applicants
+        seed: random seed for reproducibility
 
     Returns:
         DataFrame with columns: applicant_id, group, approved, defaulted,
-                                 loan_size, processing_time_days
+                                 loan_amount, processing_time
     """
     np.random.seed(seed)
-    groups = np.random.choice(['A', 'B'], size=n, p=[0.5, 0.5])
 
-    approved = np.zeros(n, dtype=int)
-    defaulted = np.zeros(n, dtype=int)
-    loan_size = np.zeros(n)
-    processing_time = np.zeros(n)
+    n_per_group = n // 2
 
-    for i in range(n):
-        if groups[i] == 'A':
-            # Control: approval ~62%, default ~11% of approved
-            if np.random.random() < 0.62:
-                approved[i] = 1
-                loan_size[i] = np.random.lognormal(10.2, 0.5)
-                processing_time[i] = np.random.gamma(5, 1.2) + 2
-                if np.random.random() < 0.11:
-                    defaulted[i] = 1
-            else:
-                loan_size[i] = 0
-                processing_time[i] = np.random.gamma(3, 0.8) + 1
-        else:
-            # Treatment: approval ~71%, default ~9% of approved
-            if np.random.random() < 0.71:
-                approved[i] = 1
-                loan_size[i] = np.random.lognormal(10.4, 0.5)
-                processing_time[i] = np.random.gamma(4, 1.0) + 1.5
-                if np.random.random() < 0.09:
-                    defaulted[i] = 1
-            else:
-                loan_size[i] = 0
-                processing_time[i] = np.random.gamma(3, 0.8) + 1
+    # Group A (control): current eligibility rules
+    # ~62% approval rate, ~11% default rate
+    group_a_approval_rate = 0.62
+    group_a_default_rate = 0.11
 
-    # Add realistic noise: some random fluctuation in the underlying probabilities
-    noise = np.random.normal(0, 0.02, size=n)
-    approved_noise = ((groups == 'A') * (0.62 + noise) +
-                       (groups == 'B') * (0.71 + noise * 0.8))
-    approved = (np.random.random(n) < np.clip(approved_noise, 0, 1)).astype(int)
-    # Recalculate defaults for newly approved
-    defaulted = np.zeros(n, dtype=int)
-    for i in range(n):
-        if approved[i]:
-            base_default = 0.11 if groups[i] == 'A' else 0.09
-            defaulted[i] = 1 if np.random.random() < base_default + np.random.normal(0, 0.015) else 0
+    # Group B (treatment): new eligibility rules
+    # ~71% approval rate, ~9% default rate
+    group_b_approval_rate = 0.71
+    group_b_default_rate = 0.09
 
-    return pd.DataFrame({
-        'applicant_id': range(1, n + 1),
-        'group': groups,
-        'approved': approved,
-        'defaulted': defaulted,
-        'loan_size': np.round(loan_size, 2),
-        'processing_time_days': np.round(processing_time, 2)
-    })
+    # Generate group A data
+    group_a_approved = np.random.random(n_per_group) < group_a_approval_rate
+    # Add noise to approval rate
+    noise_approval_a = np.random.normal(0, 0.03, n_per_group)
+    group_a_approved = np.random.random(n_per_group) < (group_a_approval_rate + noise_approval_a)
+
+    group_a_defaulted = np.zeros(n_per_group, dtype=bool)
+    group_a_defaulted[group_a_approved] = np.random.random(group_a_approved.sum()) < (group_a_default_rate + np.random.normal(0, 0.02, group_a_approved.sum()))
+
+    # Generate group B data
+    noise_approval_b = np.random.normal(0, 0.03, n_per_group)
+    group_b_approved = np.random.random(n_per_group) < (group_b_approval_rate + noise_approval_b)
+
+    group_b_defaulted = np.zeros(n_per_group, dtype=bool)
+    group_b_defaulted[group_b_approved] = np.random.random(group_b_approved.sum()) < (group_b_default_rate + np.random.normal(0, 0.02, group_b_approved.sum()))
+
+    # Loan amounts (in thousands)
+    base_loan_amounts = np.random.lognormal(4.2, 0.6, n)  # median ~67k
+
+    # Processing times (in hours)
+    base_processing_times = np.random.gamma(2.5, 2.0, n) + np.random.uniform(0.5, 2.0, n)
+
+    # Build DataFrame
+    data = {
+        'applicant_id': range(n),
+        'group': ['A'] * n_per_group + ['B'] * n_per_group,
+        'approved': np.concatenate([group_a_approved, group_b_approved]),
+        'defaulted': np.concatenate([group_a_defaulted, group_b_defaulted]),
+        'loan_amount': base_loan_amounts,
+        'processing_time': base_processing_times,
+    }
+
+    df = pd.DataFrame(data)
+
+    # Add some noise to continuous metrics
+    df['loan_amount'] = df['loan_amount'] * np.random.uniform(0.85, 1.15, n)
+    df['processing_time'] = df['processing_time'] * np.random.uniform(0.9, 1.1, n)
+
+    # For non-approved loans, loan amount should be 0
+    df.loc[~df['approved'], 'loan_amount'] = 0
+
+    return df
+
 
 def compute_group_stats(df):
-    """Compute summary statistics per group."""
+    """
+    Compute summary statistics for each group.
+
+    Returns:
+        dict with stats for each group
+    """
     stats = {}
     for group in ['A', 'B']:
-        subset = df[df['group'] == group]
-        n = len(subset)
-        n_approved = subset['approved'].sum()
-        n_defaulted = subset['defaulted'].sum()
+        grp = df[df['group'] == group]
+        n_approved = grp['approved'].sum()
+        n_defaulted = grp['defaulted'].sum()
+        n_total = len(grp)
+
         stats[group] = {
-            'n': n,
-            'approval_rate': n_approved / n,
+            'n_total': n_total,
+            'n_approved': n_approved,
+            'approval_rate': n_approved / n_total,
             'default_rate': n_defaulted / n_approved if n_approved > 0 else 0,
-            'avg_loan_size': subset[subset['approved'] == 1]['loan_size'].mean(),
-            'avg_processing_time': subset['processing_time_days'].mean()
+            'avg_loan_amount': grp.loc[grp['approved'], 'loan_amount'].mean() if n_approved > 0 else 0,
+            'avg_processing_time': grp['processing_time'].mean(),
         }
+
     return stats
+
+
+if __name__ == '__main__':
+    df = generate_data()
+    print(f"Generated {len(df)} rows")
+    print(df.head(10))
+    stats = compute_group_stats(df)
+    for group, s in stats.items():
+        print(f"\nGroup {group}:")
+        for k, v in s.items():
+            if isinstance(v, float):
+                print(f"  {k}: {v:.4f}")
+            else:
+                print(f"  {k}: {v}")
