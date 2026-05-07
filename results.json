@@ -1,39 +1,51 @@
 {
-  "n_per_group": 5000,
-  "metrics_A": {
-    "n": 5000,
-    "approval_rate": 0.6202,
-    "default_rate": 0.10899709771041599,
-    "avg_loan_size": 50051.346209954965,
-    "avg_processing_time": 4.244463038346154
+  "group_stats": {
+    "A": {
+      "n": 5000,
+      "approval_rate": 0.6202,
+      "default_rate": 0.10899709771041599,
+      "avg_loan_size": 51873.519500567025,
+      "avg_processing_time": 2.436620667390602
+    },
+    "B": {
+      "n": 5000,
+      "approval_rate": 0.7048,
+      "default_rate": 0.08967082860385925,
+      "avg_loan_size": 50958.13271947283,
+      "avg_processing_time": 2.186056186152696
+    }
   },
-  "metrics_B": {
-    "n": 5000,
-    "approval_rate": 0.7214,
-    "default_rate": 0.08649847518713612,
-    "avg_loan_size": 52042.05424168495,
-    "avg_processing_time": 3.7717094810304754
+  "approval_rate_analysis": {
+    "metric": "Approval Rate",
+    "group_A_proportion": 0.6202,
+    "group_B_proportion": 0.7048,
+    "n_A": 5000,
+    "n_B": 5000,
+    "z_statistic": 8.945621886900666,
+    "p_value": 0,
+    "ci_lower": 0.06613865986081946,
+    "ci_upper": 0.10306134013918056,
+    "significant": true,
+    "power": 0.9999999999985824,
+    "mde": 99.05099528998365,
+    "effect_direction": "higher",
+    "treatment_effect": 0.08460000000000001
   },
-  "approval_rate_test": {
-    "z_stat": 10.767728003789305,
-    "p_value": 0.0,
-    "p_A": 0.6202,
-    "p_B": 0.7214,
-    "ci_lower": 0.08288646738156247,
-    "ci_upper": 0.11951353261843767,
-    "mde": 0.02800485537016869,
-    "power_at_obs_mde": 1.0,
-    "significant": 1.0
+  "default_rate_analysis": {
+    "metric": "Default Rate",
+    "group_A_proportion": 0.10899709771041599,
+    "group_B_proportion": 0.08967082860385925,
+    "n_A": 5000,
+    "n_B": 5000,
+    "z_statistic": -3.2306302274175698,
+    "p_value": 0.0012351762180164982,
+    "ci_lower": -0.031045041168139612,
+    "ci_upper": -0.007607497044973873,
+    "significant": true,
+    "power": 0.8980763999558392,
+    "mde": 99.05099528998365,
+    "effect_direction": "lower",
+    "treatment_effect": -0.019326269106556743
   },
-  "default_rate_test": {
-    "z_stat": -1.054656088609287,
-    "p_value": 0.2915826415421918,
-    "p_A": 0.0676,
-    "p_B": 0.0624,
-    "ci_lower": -0.014863098707268955,
-    "ci_upper": 0.0044630987072689626,
-    "mde": 0.02800485537016869,
-    "power_at_obs_mde": 0.9330252746053449,
-    "significant": 0.0
-  }
+  "alpha": 0.05
 }

@@ -1,69 +1,120 @@
-"""
-Generate a human-readable summary report from the experiment results.
-"""
+"""Generate readable summary reports for A/B test results."""
+import json
 
-from src.simulate import run_experiment
+def format_pvalue(p):
+    """Format p-value for display."""
+    if p < 0.001:
+        return "< 0.001"
+    return f"{p:.4f}"
 
+def format_ci(lower, upper):
+    """Format confidence interval for display."""
+    return f"({lower:.4f}, {upper:.4f})"
 
-def generate_report(results: dict) -> str:
-    """Build a formatted text report."""
+def generate_summary_report(results):
+    """
+    Generate a human-readable summary report.
+    
+    Parameters:
+    -----------
+    results : dict
+        Results from simulate.run_simulation()
+    
+    Returns:
+    --------
+    str : Formatted report
+    """
+    stats = results['group_stats']
+    approval = results['approval_rate_analysis']
+    default = results['default_rate_analysis']
+    
     lines = []
-    sep = "=" * 60
-    thin = "-" * 60
-
-    lines.append(sep)
-    lines.append("  A/B TESTING FRAMEWORK — CREDIT ELIGIBILITY")
-    lines.append("  Experiment Summary Report")
-    lines.append(sep)
+    lines.append("=" * 60)
+    lines.append("       A/B TESTING FRAMEWORK FOR CREDIT ELIGIBILITY")
+    lines.append("=" * 60)
     lines.append("")
-
-    # Sample info
-    lines.append(f"  Sample size per group : {results['n_per_group']:,}")
+    
+    lines.append("EXECUTIVE SUMMARY")
+    lines.append("-" * 40)
+    lines.append(f"Total Applicants: {stats['A']['n'] + stats['B']['n']}")
+    lines.append(f"Group A (Control): {stats['A']['n']} applicants")
+    lines.append(f"Group B (Treatment): {stats['B']['n']} applicants")
     lines.append("")
-
-    # --- Group metrics ---
-    lines.append("GROUP METRICS")
-    lines.append(thin)
-    ma = results["metrics_A"]
-    mb = results["metrics_B"]
-
-    lines.append(f"                    Group A (Control)   Group B (Treatment)")
-    lines.append(f"  Approval rate      {ma['approval_rate']:>17.2%}   {mb['approval_rate']:>17.2%}")
-    lines.append(f"  Default rate       {ma['default_rate']:>17.2%}   {mb['default_rate']:>17.2%}")
-    lines.append(f"  Avg loan size      R{ma['avg_loan_size']:>14,.0f}   R{mb['avg_loan_size']:>14,.0f}")
-    lines.append(f"  Avg proc. time     {ma['avg_processing_time']:>16.1f}s   {mb['avg_processing_time']:>16.1f}s")
+    
+    lines.append("APPROVAL RATE ANALYSIS")
+    lines.append("-" * 40)
+    lines.append(f"  Group A (Control):  {approval['group_A_proportion']:.4f} ({approval['group_A_proportion']*100:.2f}%)")
+    lines.append(f"  Group B (Treatment): {approval['group_B_proportion']:.4f} ({approval['group_B_proportion']*100:.2f}%)")
+    lines.append(f"  Treatment Effect:   +{approval['treatment_effect']:.4f} ({approval['treatment_effect']*100:.2f} pp)")
+    lines.append(f"  Z-Statistic:         {approval['z_statistic']:.4f}")
+    lines.append(f"  P-Value:             {format_pvalue(approval['p_value'])}")
+    lines.append(f"  95% CI:              {format_ci(approval['ci_lower'], approval['ci_upper'])}")
+    lines.append(f"  Statistically Significant: {'YES' if approval['significant'] else 'NO'} (alpha=0.05)")
     lines.append("")
-
-    # --- Statistical test for approval rate ---
-    lines.append("STATISTICAL TEST: APPROVAL RATE")
-    lines.append(thin)
-    ar = results["approval_rate_test"]
-    sig = "SIGNIFICANT" if ar["significant"] else "NOT SIGNIFICANT"
-    lines.append(f"  Z-statistic        : {ar['z_stat']:.4f}")
-    lines.append(f"  P-value            : {ar['p_value']:.6f}  (α = 0.05)")
-    lines.append(f"  95% CI             : [{ar['ci_lower']:+.4f}, {ar['ci_upper']:+.4f}]")
-    lines.append(f"  MDE (80% power)    : {ar['mde']:.4f}")
-    lines.append(f"  Power at obs. MDE  : {ar['power_at_obs_mde']:.4f}")
-    lines.append(f"  Conclusion         : {sig}")
+    
+    lines.append("DEFAULT RATE ANALYSIS")
+    lines.append("-" * 40)
+    lines.append(f"  Group A (Control):  {default['group_A_proportion']:.4f} ({default['group_A_proportion']*100:.2f}%)")
+    lines.append(f"  Group B (Treatment): {default['group_B_proportion']:.4f} ({default['group_B_proportion']*100:.2f}%)")
+    lines.append(f"  Treatment Effect:   {default['treatment_effect']:.4f} ({default['treatment_effect']*100:.2f} pp)")
+    lines.append(f"  Z-Statistic:         {default['z_statistic']:.4f}")
+    lines.append(f"  P-Value:             {format_pvalue(default['p_value'])}")
+    lines.append(f"  95% CI:              {format_ci(default['ci_lower'], default['ci_upper'])}")
+    lines.append(f"  Statistically Significant: {'YES' if default['significant'] else 'NO'} (alpha=0.05)")
     lines.append("")
-
-    # --- Statistical test for default rate ---
-    lines.append("STATISTICAL TEST: DEFAULT RATE")
-    lines.append(thin)
-    dr = results["default_rate_test"]
-    sig_dr = "SIGNIFICANT" if dr["significant"] else "NOT SIGNIFICANT"
-    lines.append(f"  Z-statistic        : {dr['z_stat']:.4f}")
-    lines.append(f"  P-value            : {dr['p_value']:.6f}  (α = 0.05)")
-    lines.append(f"  95% CI             : [{dr['ci_lower']:+.4f}, {dr['ci_upper']:+.4f}]")
-    lines.append(f"  MDE (80% power)    : {dr['mde']:.4f}")
-    lines.append(f"  Power at obs. MDE  : {dr['power_at_obs_mde']:.4f}")
-    lines.append(f"  Conclusion         : {sig_dr}")
+    
+    lines.append("STATISTICAL POWER")
+    lines.append("-" * 40)
+    lines.append(f"  Approval Rate Power: {approval['power']:.4f} ({approval['power']*100:.2f}%)")
+    lines.append(f"  Default Rate Power:  {default['power']:.4f} ({default['power']*100:.2f}%)")
+    lines.append(f"  Min Detectable Effect (Approval): {approval['mde']:.4f} ({approval['mde']*100:.2f} pp)")
+    lines.append(f"  Min Detectable Effect (Default): {default['mde']:.4f} ({default['mde']*100:.2f} pp)")
     lines.append("")
-    lines.append(sep)
-
+    
+    lines.append("CONCLUSION")
+    lines.append("-" * 40)
+    if approval['significant'] and default['significant']:
+        lines.append("  The new model (Group B) is SIGNIFICANTLY BETTER on both metrics.")
+        lines.append("  - Higher approval rate (+{:.1f} pp)".format(approval['treatment_effect']*100))
+        lines.append("  - Lower default rate ({:.1f} pp)".format(default['treatment_effect']*100))
+        lines.append("  RECOMMENDATION: Deploy the new model.")
+    elif approval['significant']:
+        lines.append("  The new model shows SIGNIFICANT improvement in approval rate")
+        lines.append("  but NO significant change in default rate.")
+        lines.append("  RECOMMENDATION: Further analysis required.")
+    elif default['significant']:
+        lines.append("  The new model shows SIGNIFICANT improvement in default rate")
+        lines.append("  but NO significant change in approval rate.")
+        lines.append("  RECOMMENDATION: Further analysis required.")
+    else:
+        lines.append("  NO statistically significant differences detected.")
+        lines.append("  RECOMMENDATION: Continue with current model.")
+    
+    lines.append("")
+    lines.append("=" * 60)
+    
     return "\n".join(lines)
 
+def results_to_json(results):
+    """Convert results to JSON-serializable format."""
+    def make_serializable(obj):
+        if isinstance(obj, dict):
+            return {k: make_serializable(v) for k, v in obj.items()}
+        elif isinstance(obj, (list, tuple)):
+            return [make_serializable(i) for i in obj]
+        elif isinstance(obj, (int, float)):
+            return float(obj) if obj != int(obj) else int(obj)
+        elif isinstance(obj, np_bool):
+            return bool(obj)
+        else:
+            return obj
+    
+    import numpy as np
+    np_bool = np.bool_
+    
+    return make_serializable(results)
 
-if __name__ == "__main__":
-    results = run_experiment()
-    print(generate_report(results))
+if __name__ == '__main__':
+    from simulate import run_simulation
+    results = run_simulation()
+    print(generate_summary_report(results))

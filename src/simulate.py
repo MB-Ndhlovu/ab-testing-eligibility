@@ -1,79 +1,70 @@
-"""
-Run the A/B experiment simulation: compute metrics and run statistical tests.
-"""
-
+"""Run A/B test experiment simulation and compute treatment effects."""
 import numpy as np
-from src.data_generator import generate_data, compute_group_metrics
-from src.statistical import (
-    two_proportion_ztest,
-    confidence_interval_diff,
-    min_detectable_effect,
-    statistical_power,
-)
+from .data_generator import generate_data, compute_group_stats
+from .statistical import evaluate_metric
 
-
-def run_experiment() -> dict:
+def run_simulation(alpha=0.05):
     """
-    Execute the full A/B test simulation.
-
-    Returns
-    -------
-    results : dict — metrics for both groups and statistical test results
+    Run the full A/B test simulation.
+    
+    Parameters:
+    -----------
+    alpha : float
+        Significance level for hypothesis testing
+    
+    Returns:
+    --------
+    dict with simulation results
     """
-    group_A, group_B = generate_data()
-
-    metrics_A = compute_group_metrics(group_A)
-    metrics_B = compute_group_metrics(group_B)
-
-    # Approval rate test
-    n_A = metrics_A["n"]
-    n_B = metrics_B["n"]
-    approved_A = int(metrics_A["approval_rate"] * n_A)
-    approved_B = int(metrics_B["approval_rate"] * n_B)
-
-    approval_test = two_proportion_ztest(n_A, approved_A, n_B, approved_B)
-    approval_ci = confidence_interval_diff(n_A, approved_A, n_B, approved_B)
-    approval_mde = min_detectable_effect(n_A)
-
-    # Default rate test (conditional on approval)
-    def_A = int(metrics_A["default_rate"] * approved_A)
-    def_B = int(metrics_B["default_rate"] * approved_B)
-
-    default_test = two_proportion_ztest(n_A, def_A, n_B, def_B)
-    default_ci = confidence_interval_diff(n_A, def_A, n_B, def_B)
-    default_mde = min_detectable_effect(n_A)
-
-    # Power at observed MDE
-    approval_obs_mde = abs(metrics_B["approval_rate"] - metrics_A["approval_rate"])
-    default_obs_mde = abs(metrics_B["default_rate"] - metrics_A["default_rate"])
-
-    approval_power = statistical_power(n_A, metrics_A["approval_rate"], approval_obs_mde)
-    default_power = statistical_power(n_A, metrics_A["default_rate"], default_obs_mde)
-
+    # Generate data
+    df = generate_data()
+    
+    # Compute group statistics
+    stats = compute_group_stats(df)
+    
+    n_A = stats['A']['n']
+    n_B = stats['B']['n']
+    
+    # Evaluate approval rate
+    approval_result = evaluate_metric(
+        name='Approval Rate',
+        n_A=n_A,
+        p_A=stats['A']['approval_rate'],
+        n_B=n_B,
+        p_B=stats['B']['approval_rate'],
+        alpha=alpha
+    )
+    
+    # Evaluate default rate
+    default_result = evaluate_metric(
+        name='Default Rate',
+        n_A=n_A,
+        p_A=stats['A']['default_rate'],
+        n_B=n_B,
+        p_B=stats['B']['default_rate'],
+        alpha=alpha
+    )
+    
     return {
-        "n_per_group": n_A,
-        "metrics_A": metrics_A,
-        "metrics_B": metrics_B,
-        "approval_rate_test": {
-            "z_stat": approval_test["z_stat"],
-            "p_value": approval_test["p_value"],
-            "p_A": approval_test["p_A"],
-            "p_B": approval_test["p_B"],
-            "ci_lower": approval_ci[0],
-            "ci_upper": approval_ci[1],
-            "mde": approval_mde,
-            "power_at_obs_mde": approval_power,
-            "significant": approval_test["p_value"] < 0.05,
-        },
-        "default_rate_test": {
-            "z_stat": default_test["z_stat"],
-            "p_value": default_test["p_value"],
-            "p_A": default_test["p_A"],
-            "p_B": default_test["p_B"],
-            "ci_lower": default_ci[0],
-            "ci_upper": default_ci[1],
-            "mde": default_mde,
-            "power_at_obs_mde": default_power,
-            "significant": default_test["p_value"] < 0.05,
-        },
+        'group_stats': stats,
+        'approval_rate_analysis': approval_result,
+        'default_rate_analysis': default_result,
+        'alpha': alpha,
     }
+
+def compute_treatment_effects(results):
+    """Extract treatment effects from results."""
+    approval_effect = results['approval_rate_analysis']['treatment_effect']
+    default_effect = results['default_rate_analysis']['treatment_effect']
+    return {
+        'approval_rate_lift': approval_effect,
+        'default_rate_change': default_effect,
+        'approval_rate_lift_pct': (approval_effect / results['group_stats']['A']['approval_rate']) * 100,
+        'default_rate_change_pct': (default_effect / results['group_stats']['A']['default_rate']) * 100,
+    }
+
+if __name__ == '__main__':
+    results = run_simulation()
+    print("Simulation complete")
+    print(f"Approval Rate: {results['approval_rate_analysis']['group_A_proportion']:.4f} vs {results['approval_rate_analysis']['group_B_proportion']:.4f}")
+    print(f"Default Rate: {results['default_rate_analysis']['group_A_proportion']:.4f} vs {results['default_rate_analysis']['group_B_proportion']:.4f}")
