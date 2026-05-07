@@ -2,34 +2,41 @@
 
 ## Business Problem
 
-A lender wants to test whether a new credit eligibility model (treatment group B) improves outcomes compared to their current model (control group A).
+A lender wants to evaluate whether a new credit eligibility model (Group B) outperforms their current model (Group A). The goal is to make data-driven decisions about adopting the new model by rigorously testing the difference in key business metrics.
 
-**Key Metrics:**
-- **Approval Rate**: Higher is better (more loans approved)
-- **Default Rate**: Lower is better (fewer defaults)
+## Metrics Under Test
 
-**Hypothesis:**
-- H0 (null): No difference between models
-- H1 (alternative): Treatment B differs from control A
+| Metric | Group A (Control) | Group B (Treatment) | Direction |
+|--------|------------------|---------------------|-----------|
+| Approval Rate | ~62% | ~71% | Higher is better |
+| Default Rate | ~11% | ~9% | Lower is better |
+| Avg Loan Size | Simulated | Simulated | Contextual |
+| Processing Time | Simulated | Simulated | Lower is better |
 
 ## Methodology
 
-1. **Data Generation**: Simulate 5,000 loan applications split evenly into control (A) and treatment (B) groups
-2. **Synthetic Outcomes**: Assign approval/default outcomes using probabilistic models with realistic noise
-3. **Statistical Testing**: Two-proportion z-test for each metric
-4. **Reporting**: Confidence intervals, p-values, and statistical conclusions at α=0.05
+### Statistical Approach
+- **Test**: Two-Proportion Z-Test (for approval_rate and default_rate)
+- **Significance Level**: α = 0.05
+- **Confidence Intervals**: 95% CI for the difference between proportions
 
-## Target Metrics
+### Key Outputs
+- Z-statistic and p-value for each metric
+- 95% Confidence Interval for the treatment effect
+- Statistical power and minimum detectable effect (MDE)
+- Clear GO/NO-GO recommendation per metric
 
-| Metric | Group A (Control) | Group B (Treatment) |
-|--------|-------------------|---------------------|
-| Approval Rate | ~62% | ~71% |
-| Default Rate | ~11% | ~9% |
+## Project Structure
 
-## Files
-
-- `src/data_generator.py` — Generate synthetic loan data
-- `src/statistical.py` — Z-test, confidence intervals, power analysis
-- `src/simulate.py` — Run experiment simulation
-- `src/report.py` — Generate summary report
-- `run_pipeline.py` — Execute full pipeline
+```
+ab-testing-eligibility/
+├── README.md
+├── requirements.txt
+├── run_pipeline.py
+└── src/
+    ├── __init__.py
+    ├── data_generator.py   # Generate 5000 synthetic loan records
+    ├── statistical.py     # Z-test, CI, power, MDE calculations
+    ├── simulate.py        # Run experiment and compute effects
+    └── report.py          # Human-readable summary
+```

@@ -1,92 +1,56 @@
-"""
-Experiment simulation: run A/B test and compute treatment effects.
-"""
-from src.data_generator import generate_loan_data, compute_group_metrics
-from src.statistical import (
-    two_proportion_ztest,
-    confidence_interval_diff,
-    statistical_power,
-    minimum_detectable_effect
-)
+"""Run A/B experiment simulation and compute treatment effects."""
+from .data_generator import generate_credit_data, compute_group_summary
+from .statistical import two_proportion_ztest, statistical_power, minimum_detectable_effect
 
 
-def run_simulation(seed=42):
+def run_experiment(n=5000):
     """
-    Run full A/B test simulation.
+    Run the full A/B experiment: generate data and run statistical tests.
 
-    Args:
-        seed: Random seed
-
-    Returns:
-        dict with all results
+    Returns a dict with raw data summary, statistical results, and power info.
     """
-    df = generate_loan_data(seed=seed)
-    metrics = compute_group_metrics(df)
+    df = generate_credit_data(n=n)
 
-    mA = metrics['A']
-    mB = metrics['B']
+    summaries = compute_group_summary(df)
 
-    results = {
-        'data': {
-            'group_A': {
-                'n': int(mA['n']),
-                'approval_rate': float(round(mA['approval_rate'], 4)),
-                'default_rate': float(round(mA['default_rate'], 4)),
-                'avg_loan_size': float(round(mA['avg_loan_size'], 2)),
-                'avg_processing_time': float(round(mA['avg_processing_time'], 2))
-            },
-            'group_B': {
-                'n': int(mB['n']),
-                'approval_rate': float(round(mB['approval_rate'], 4)),
-                'default_rate': float(round(mB['default_rate'], 4)),
-                'avg_loan_size': float(round(mB['avg_loan_size'], 2)),
-                'avg_processing_time': float(round(mB['avg_processing_time'], 2))
-            }
-        }
+    group_a = summaries["A"]
+    group_b = summaries["B"]
+
+    # --- Approval Rate Test ---
+    approval_result = two_proportion_ztest(
+        n_success_a=int(group_a["approval_rate"] * group_a["n"]),
+        n_trials_a=group_a["n"],
+        n_success_b=int(group_b["approval_rate"] * group_b["n"]),
+        n_trials_b=group_b["n"],
+    )
+
+    # --- Default Rate Test ---
+    # default rate is conditional on being approved
+    n_approved_a = int(group_a["approval_rate"] * group_a["n"])
+    n_defaulted_a = int(group_a["default_rate"] * n_approved_a)
+    n_approved_b = int(group_b["approval_rate"] * group_b["n"])
+    n_defaulted_b = int(group_b["default_rate"] * n_approved_b)
+
+    default_result = two_proportion_ztest(
+        n_success_a=n_defaulted_a,
+        n_trials_a=n_approved_a,
+        n_success_b=n_defaulted_b,
+        n_trials_b=n_approved_b,
+    )
+
+    # --- Power Analysis ---
+    power_approval = statistical_power(
+        group_a["n"], group_b["n"],
+        group_a["approval_rate"], group_b["approval_rate"]
+    )
+    mde_approval = minimum_detectable_effect(group_a["n"], group_b["n"])
+
+    return {
+        "n_total": n,
+        "group_a": group_a,
+        "group_b": group_b,
+        "approval_rate_test": approval_result,
+        "default_rate_test": default_result,
+        "power_approval": power_approval,
+        "mde_approval": mde_approval,
     }
-
-    # Approval rate test
-    nA, pA = mA['n'], mA['approval_rate']
-    nB, pB = mB['n'], mB['approval_rate']
-
-    approval_test = two_proportion_ztest(nA, pA, nB, pB)
-    approval_ci = confidence_interval_diff(nA, pA, nB, pB)
-
-    results['approval_rate'] = {
-        'z_statistic': float(round(approval_test['z_statistic'], 4)),
-        'p_value': float(round(approval_test['p_value'], 6)),
-        'ci_lower': float(round(approval_ci[0], 4)),
-        'ci_upper': float(round(approval_ci[1], 4)),
-        'significant': bool(approval_test['p_value'] < 0.05),
-        'treatment_effect': float(round(pB - pA, 4))
-    }
-
-    # Default rate test
-    nA_d = mA['n']
-    pA_d = mA['default_rate']
-    nB_d = mB['n']
-    pB_d = mB['default_rate']
-
-    default_test = two_proportion_ztest(nA_d, pA_d, nB_d, pB_d)
-    default_ci = confidence_interval_diff(nA_d, pA_d, nB_d, pB_d)
-
-    results['default_rate'] = {
-        'z_statistic': float(round(default_test['z_statistic'], 4)),
-        'p_value': float(round(default_test['p_value'], 6)),
-        'ci_lower': float(round(default_ci[0], 4)),
-        'ci_upper': float(round(default_ci[1], 4)),
-        'significant': bool(default_test['p_value'] < 0.05),
-        'treatment_effect': float(round(pB_d - pA_d, 4))
-    }
-
-    # Power analysis
-    n_half = nA
-    mde = minimum_detectable_effect(n_half)
-
-    results['power_analysis'] = {
-        'sample_size_per_group': int(n_half),
-        'minimum_detectable_effect': float(round(mde, 4)),
-        'power_at_mde': float(round(statistical_power(n_half, pA, pA + mde), 3))
-    }
-
-    return results

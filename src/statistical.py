@@ -1,90 +1,61 @@
-"""
-Statistical analysis: two-proportion z-test, confidence intervals, power analysis.
-"""
+"""Statistical tests for A/B testing of proportions."""
 import numpy as np
 from scipy import stats
 
 
-def two_proportion_ztest(n1, p1, n2, p2):
+def two_proportion_ztest(n_success_a, n_trials_a, n_success_b, n_trials_b):
     """
-    Two-proportion z-test.
+    Two-proportion z-test comparing success rates.
 
-    Args:
-        n1: Sample size group 1
-        p1: Proportion success group 1
-        n2: Sample size group 2
-        p2: Proportion success group 2
-
-    Returns:
-        dict with z_statistic, p_value (two-tailed)
+    Returns z-statistic, p-value (two-tailed), and 95% CI for p_b - p_a.
     """
-    p_pool = (n1 * p1 + n2 * p2) / (n1 + n2)
-    se = np.sqrt(p_pool * (1 - p_pool) * (1/n1 + 1/n2))
-    if se == 0:
-        return {'z_statistic': 0.0, 'p_value': 1.0, 'se': 0.0}
-    z = (p2 - p1) / se
+    p_a = n_success_a / n_trials_a
+    p_b = n_success_b / n_trials_b
+    p_pooled = (n_success_a + n_success_b) / (n_trials_a + n_trials_b)
+
+    se = np.sqrt(p_pooled * (1 - p_pooled) * (1 / n_trials_a + 1 / n_trials_b))
+    z = (p_b - p_a) / se if se > 0 else 0.0
+
     p_value = 2 * (1 - stats.norm.cdf(abs(z)))
-    return {'z_statistic': z, 'p_value': p_value, 'se': se, 'p_pool': p_pool}
+
+    # 95% CI for difference using unpooled standard error
+    se_diff = np.sqrt((p_a * (1 - p_a)) / n_trials_a + (p_b * (1 - p_b)) / n_trials_b)
+    ci_lower = (p_b - p_a) - 1.96 * se_diff
+    ci_upper = (p_b - p_a) + 1.96 * se_diff
+
+    return {
+        "z_statistic": round(z, 4),
+        "p_value": round(p_value, 6),
+        "ci_95_lower": round(ci_lower, 4),
+        "ci_95_upper": round(ci_upper, 4),
+        "significant": p_value < 0.05,
+    }
 
 
-def confidence_interval_diff(n1, p1, n2, p2, confidence=0.95):
+def statistical_power(n_a, n_b, p_a, p_a_b, alpha=0.05):
     """
-    Confidence interval for difference in proportions (p2 - p1).
-
-    Args:
-        n1, p1: Group 1 size and proportion
-        n2, p2: Group 2 size and proportion
-        confidence: Confidence level (default 0.95)
-
-    Returns:
-        (lower, upper) tuple
+    Compute statistical power given sample sizes and proportions.
+    p_a_b is the treatment proportion (what we expect in B).
     """
-    se = np.sqrt(p1 * (1 - p1) / n1 + p2 * (1 - p2) / n2)
-    if se == 0:
-        return (0.0, 0.0)
-    z = stats.norm.ppf((1 + confidence) / 2)
-    diff = p2 - p1
-    return (diff - z * se, diff + z * se)
-
-
-def statistical_power(n, p1, p2, alpha=0.05):
-    """
-    Compute statistical power for two-proportion z-test.
-
-    Args:
-        n: Sample size per group (assumes equal groups)
-        p1: Baseline proportion
-        p2: Treatment proportion
-        alpha: Significance level
-
-    Returns:
-        Power (probability of detecting true difference)
-    """
-    p_pool = (p1 + p2) / 2
-    se = np.sqrt(p_pool * (1 - p_pool) * (2 / n))
+    p_pooled = (p_a + p_a_b) / 2
+    se = np.sqrt(p_pooled * (1 - p_pooled) * (1 / n_a + 1 / n_b))
+    effect = abs(p_a_b - p_a)
     if se == 0:
         return 0.0
-    z_alpha = stats.norm.ppf(1 - alpha / 2)
-    diff = abs(p2 - p1)
-    z_beta = (diff / se) - z_alpha
-    power = stats.norm.cdf(z_beta)
-    return power
+    z_crit = stats.norm.ppf(1 - alpha / 2)
+    z_power = (effect / se) - z_crit
+    power = stats.norm.cdf(z_power)
+    return round(power, 4)
 
 
-def minimum_detectable_effect(n, alpha=0.05, power=0.80):
+def minimum_detectable_effect(n_a, n_b, alpha=0.05, power=0.80):
     """
-    Minimum detectable effect (MDE) for given sample size.
-
-    Args:
-        n: Sample size per group
-        alpha: Significance level
-        power: Desired power
-
-    Returns:
-        Minimum detectable absolute difference in proportions
+    Return the minimum detectable effect (absolute) given sample sizes and power.
     """
-    z_alpha = stats.norm.ppf(1 - alpha / 2)
+    z_crit = stats.norm.ppf(1 - alpha / 2)
     z_beta = stats.norm.ppf(power)
-    p = 0.5  # conservative estimate
-    mde = (z_alpha + z_beta) * np.sqrt(2 * p * (1 - p) / n)
-    return mde
+    # Assume p_a ≈ 0.5 for a conservative MDE
+    p_pooled = 0.5
+    se = np.sqrt(p_pooled * (1 - p_pooled) * (1 / n_a + 1 / n_b))
+    mde = (z_crit + z_beta) * se
+    return round(mde, 4)

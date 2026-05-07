@@ -1,21 +1,20 @@
-"""
-Execute full A/B test pipeline.
-"""
+"""Execute the full A/B testing pipeline."""
 import json
-from src.simulate import run_simulation
-from src.report import generate_report, save_results_json
+from src.simulate import run_experiment
+from src.report import generate_report, save_json_report
 
 
 def main():
-    print("Running A/B test simulation...\n")
-    results = run_simulation(seed=42)
+    print("Running A/B experiment simulation...\n")
+    results = run_experiment(n=5000)
 
+    # Save JSON
+    save_json_report(results, "ab_test_results.json")
+    print("Results saved to ab_test_results.json\n")
+
+    # Print readable report
     report = generate_report(results)
     print(report)
-
-    save_path = "/home/workspace/Projects/ab-testing-eligibility/results.json"
-    save_results_json(results, save_path)
-    print(f"\nResults saved to: {save_path}")
 
     return results
 
