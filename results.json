@@ -1,46 +1,43 @@
 {
-  "summary": {
-    "A": {
-      "n_total": 2500,
-      "n_approved": 1565,
-      "approval_rate": 0.626,
-      "default_rate": 0.115,
-      "avg_loan_size": 49338.53,
-      "avg_processing_hours": 48.5
-    },
-    "B": {
-      "n_total": 2500,
-      "n_approved": 1763,
-      "approval_rate": 0.7052,
-      "default_rate": 0.0981,
-      "avg_loan_size": 48803.64,
-      "avg_processing_hours": 45.0
-    }
+  "group_a": {
+    "group": "A",
+    "n": 2500,
+    "approval_rate": 0.6188,
+    "default_rate": 0.11247575953458307,
+    "avg_loan_size": 44253.77773755656,
+    "avg_processing_time": 4.264292
   },
-  "approval_rate_test": {
-    "group_a_rate": 0.626,
-    "group_b_rate": 0.7052,
-    "difference": 0.0792,
-    "z_statistic": 5.9353,
-    "p_value": 0.0,
-    "ci_95_lower": 0.0531,
-    "ci_95_upper": 0.1053,
-    "significant_at_0.05": true,
-    "alpha": 0.05,
-    "p_pooled": 0.6656
+  "group_b": {
+    "group": "B",
+    "n": 2500,
+    "approval_rate": 0.7228,
+    "default_rate": 0.08909795240730492,
+    "avg_loan_size": 47419.66787493082,
+    "avg_processing_time": 3.8561479999999997
   },
-  "default_rate_test": {
-    "group_a_rate": 0.1144,
-    "group_b_rate": 0.0976,
-    "difference": -0.0168,
-    "z_statistic": -1.5764,
-    "p_value": 0.114943,
-    "ci_95_lower": -0.0378,
-    "ci_95_upper": 0.0042,
-    "significant_at_0.05": false,
-    "alpha": 0.05,
-    "p_pooled": 0.1055
+  "approval_test": {
+    "p1": 0.6188,
+    "p2": 0.7228,
+    "difference": 0.10399999999999998,
+    "z_statistic": 7.824595680859453,
+    "p_value": 5.10702591327572e-15,
+    "ci_lower": 0.07810880149894947,
+    "ci_upper": 0.1298911985010505,
+    "significant": 1.0
   },
-  "approval_power": 1.0,
-  "default_power": 0.3509
+  "default_test": {
+    "p1": 0.0696,
+    "p2": 0.0644,
+    "difference": -0.005199999999999996,
+    "z_statistic": -0.7353263465624444,
+    "p_value": 0.4621407663129544,
+    "ci_lower": -0.01905976301049913,
+    "ci_upper": 0.008659763010499137,
+    "significant": 0.0
+  },
+  "power_approval": 0.9999999977493464,
+  "power_default": 0.783939101666006,
+  "mde_approval": 0.0384857920837217,
+  "mde_default": 0.025036199863056666,
+  "alpha": 0.05
 }

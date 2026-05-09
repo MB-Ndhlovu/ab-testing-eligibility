@@ -1,41 +1,48 @@
-"""Run the A/B experiment simulation and compute treatment effects."""
-
-from src.data_generator import generate_data, summarize
-from src.statistical import two_proportion_ztest, compute_power
+from src.data_generator import generate_credit_data, compute_group_summary
+from src.statistical import two_proportion_ztest, statistical_power, minimum_detectable_effect
 
 
-def run_simulation():
-    # Generate data
-    df = generate_data()
-    summary = summarize(df)
+def run_experiment(df, alpha: float = 0.05) -> dict:
+    """Run A/B experiment and compute all statistical results.
 
-    n_a = summary["A"]["n_total"]
-    n_b = summary["B"]["n_total"]
-    n_approved_a = summary["A"]["n_approved"]
-    n_approved_b = summary["B"]["n_approved"]
-    n_defaulted_a = int(summary["A"]["default_rate"] * n_approved_a)
-    n_defaulted_b = int(summary["B"]["default_rate"] * n_approved_b)
+    Args:
+        df: DataFrame from data_generator
+        alpha: Significance level
 
-    # Approval rate test
-    approval_test = two_proportion_ztest(n_approved_a, n_a, n_approved_b, n_b)
+    Returns:
+        dict with group summaries, test results, and power analysis
+    """
+    summary_a = compute_group_summary(df, "A")
+    summary_b = compute_group_summary(df, "B")
 
-    # Default rate test (among approved)
-    default_test = two_proportion_ztest(n_defaulted_a, n_approved_a, n_defaulted_b, n_approved_b)
+    n_a = summary_a["n"]
+    n_b = summary_b["n"]
 
-    # Power
-    approval_power = compute_power(n_a, n_b, summary["A"]["approval_rate"], summary["B"]["approval_rate"])
-    default_power = compute_power(n_approved_a, n_approved_b, summary["A"]["default_rate"], summary["B"]["default_rate"])
+    approved_a = int(summary_a["approval_rate"] * n_a)
+    approved_b = int(summary_b["approval_rate"] * n_b)
+
+    defaulted_a = int(summary_a["default_rate"] * approved_a) if approved_a > 0 else 0
+    defaulted_b = int(summary_b["default_rate"] * approved_b) if approved_b > 0 else 0
+
+    approval_test = two_proportion_ztest(n_a, approved_a, n_b, approved_b)
+    default_test = two_proportion_ztest(n_a, defaulted_a, n_b, defaulted_b)
+
+    power_approval = statistical_power(n_a, n_b, summary_a["approval_rate"],
+                                       summary_b["approval_rate"], alpha)
+    power_default = statistical_power(n_a, n_b, summary_a["default_rate"],
+                                        summary_b["default_rate"], alpha)
+
+    mde_approval = minimum_detectable_effect(n_a, n_b, summary_a["approval_rate"], alpha)
+    mde_default = minimum_detectable_effect(n_a, n_b, summary_a["default_rate"], alpha)
 
     return {
-        "summary": summary,
-        "approval_rate_test": approval_test,
-        "default_rate_test": default_test,
-        "approval_power": approval_power,
-        "default_power": default_power,
+        "group_a": summary_a,
+        "group_b": summary_b,
+        "approval_test": approval_test,
+        "default_test": default_test,
+        "power_approval": power_approval,
+        "power_default": power_default,
+        "mde_approval": mde_approval,
+        "mde_default": mde_default,
+        "alpha": alpha,
     }
-
-
-if __name__ == "__main__":
-    results = run_simulation()
-    import json
-    print(json.dumps(results, indent=2))

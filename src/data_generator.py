@@ -1,109 +1,88 @@
-"""Generate synthetic loan application data for A/B testing."""
-
 import numpy as np
 import pandas as pd
 
-np.random.seed(42)
 
-N_PER_GROUP = 2500
+def generate_credit_data(n: int = 5000, seed: int = 42) -> pd.DataFrame:
+    """Generate synthetic credit eligibility data for A/B testing.
 
+    Args:
+        n: Total number of applicants
+        seed: Random seed for reproducibility
 
-def generate_data() -> pd.DataFrame:
+    Returns:
+        DataFrame with columns: applicant_id, group, approved, defaulted,
+        loan_size, processing_time_seconds
+    """
+    np.random.seed(seed)
+
+    half = n // 2
+
     group_a_approval_rate = 0.62
     group_a_default_rate = 0.11
     group_b_approval_rate = 0.71
     group_b_default_rate = 0.09
 
-    records = []
+    approved_a = np.random.random(half) < group_a_approval_rate
+    defaulted_a = np.random.random(half) < group_a_default_rate
+    approved_b = np.random.random(half) < group_b_approval_rate
+    defaulted_b = np.random.random(half) < group_b_default_rate
 
-    # Group A
-    rng_a = np.random.default_rng(42)
-    approved_a = rng_a.random(N_PER_GROUP) < group_a_approval_rate
-    n_approved_a = approved_a.sum()
-    defaulted_a = (rng_a.random(n_approved_a) < group_a_default_rate).astype(bool)
-    loan_sizes_a = rng_a.lognormal(mean=10.5, sigma=0.8, size=n_approved_a)
-    processing_a = rng_a.normal(loc=48, scale=12, size=n_approved_a)
+    loan_sizes_a = np.random.lognormal(mean=10.5, sigma=0.6, size=half)
+    loan_sizes_a = np.clip(loan_sizes_a, 1000, 150000)
+    loan_sizes_b = np.random.lognormal(mean=10.6, sigma=0.6, size=half)
+    loan_sizes_b = np.clip(loan_sizes_b, 1000, 150000)
 
-    defaulted_idx_a = 0
-    loan_idx_a = 0
-    proc_idx_a = 0
-    for i in range(N_PER_GROUP):
-        approved = approved_a[i]
-        if approved:
-            defaulted = defaulted_a[defaulted_idx_a]
-            defaulted_idx_a += 1
-            loan_size = loan_sizes_a[loan_idx_a]
-            loan_idx_a += 1
-            proc_hours = processing_a[proc_idx_a]
-            proc_idx_a += 1
-        else:
-            defaulted = False
-            loan_size = 0.0
-            proc_hours = 0.0
-        records.append({
-            "application_id": i + 1,
-            "group": "A",
-            "approved": approved,
-            "loan_size": round(loan_size, 2),
-            "processing_hours": round(proc_hours, 2),
-            "defaulted": defaulted,
-        })
+    processing_a = np.random.normal(loc=4.2, scale=1.8, size=half)
+    processing_b = np.random.normal(loc=3.8, scale=1.6, size=half)
+    processing_a = np.clip(processing_a, 0.5, 15)
+    processing_b = np.clip(processing_b, 0.5, 15)
 
-    # Group B
-    rng_b = np.random.default_rng(43)
-    approved_b = rng_b.random(N_PER_GROUP) < group_b_approval_rate
-    n_approved_b = approved_b.sum()
-    defaulted_b = (rng_b.random(n_approved_b) < group_b_default_rate).astype(bool)
-    loan_sizes_b = rng_b.lognormal(mean=10.5, sigma=0.8, size=n_approved_b)
-    processing_b = rng_b.normal(loc=45, scale=11, size=n_approved_b)
+    df_a = pd.DataFrame({
+        "applicant_id": range(1, half + 1),
+        "group": "A",
+        "approved": approved_a.astype(int),
+        "defaulted": defaulted_a.astype(int),
+        "loan_size": np.round(loan_sizes_a, 2),
+        "processing_time_seconds": np.round(processing_a, 2),
+    })
 
-    defaulted_idx_b = 0
-    loan_idx_b = 0
-    proc_idx_b = 0
-    for i in range(N_PER_GROUP):
-        approved = approved_b[i]
-        if approved:
-            defaulted = defaulted_b[defaulted_idx_b]
-            defaulted_idx_b += 1
-            loan_size = loan_sizes_b[loan_idx_b]
-            loan_idx_b += 1
-            proc_hours = processing_b[proc_idx_b]
-            proc_idx_b += 1
-        else:
-            defaulted = False
-            loan_size = 0.0
-            proc_hours = 0.0
-        records.append({
-            "application_id": N_PER_GROUP + i + 1,
-            "group": "B",
-            "approved": approved,
-            "loan_size": round(loan_size, 2),
-            "processing_hours": round(proc_hours, 2),
-            "defaulted": defaulted,
-        })
+    df_b = pd.DataFrame({
+        "applicant_id": range(half + 1, n + 1),
+        "group": "B",
+        "approved": approved_b.astype(int),
+        "defaulted": defaulted_b.astype(int),
+        "loan_size": np.round(loan_sizes_b, 2),
+        "processing_time_seconds": np.round(processing_b, 2),
+    })
 
-    return pd.DataFrame(records)
+    df = pd.concat([df_a, df_b], ignore_index=True)
+    df["defaulted"] = df["defaulted"] * df["approved"]
+
+    return df
 
 
-def summarize(df: pd.DataFrame) -> dict:
-    summary = {}
-    for group in ["A", "B"]:
-        g = df[df["group"] == group]
-        approved = g[g["approved"]]
-        n_total = len(g)
-        n_approved = len(approved)
-        summary[group] = {
-            "n_total": n_total,
-            "n_approved": n_approved,
-            "approval_rate": round(n_approved / n_total, 4),
-            "default_rate": round(approved["defaulted"].mean(), 4) if n_approved > 0 else 0.0,
-            "avg_loan_size": round(approved["loan_size"].mean(), 2) if n_approved > 0 else 0.0,
-            "avg_processing_hours": round(approved["processing_hours"].mean(), 2) if n_approved > 0 else 0.0,
-        }
-    return summary
+def compute_group_summary(df: pd.DataFrame, group: str) -> dict:
+    """Compute summary statistics for a group."""
+    g = df[df["group"] == group]
+    n = len(g)
+    approved_sum = g["approved"].sum()
+    defaulted_sum = g["defaulted"].sum()
+
+    return {
+        "group": group,
+        "n": n,
+        "approval_rate": approved_sum / n,
+        "default_rate": defaulted_sum / approved_sum if approved_sum > 0 else 0,
+        "avg_loan_size": g.loc[g["approved"] == 1, "loan_size"].mean(),
+        "avg_processing_time": g["processing_time_seconds"].mean(),
+    }
 
 
 if __name__ == "__main__":
-    df = generate_data()
+    df = generate_credit_data()
     print(df.head(10))
-    print(summarize(df))
+    for g in ["A", "B"]:
+        s = compute_group_summary(df, g)
+        print(f"\nGroup {g}:")
+        for k, v in s.items():
+            print(f"  {k}: {v}")

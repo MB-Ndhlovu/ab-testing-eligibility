@@ -1,44 +1,23 @@
-"""Execute the full A/B test pipeline and save results."""
-
 import json
-import os
-import numpy as np
-
-def make_serializable(obj):
-    if isinstance(obj, np.bool_):
-        return bool(obj)
-    if isinstance(obj, np.integer):
-        return int(obj)
-    if isinstance(obj, np.floating):
-        return float(obj)
-    if isinstance(obj, dict):
-        return {k: make_serializable(v) for k, v in obj.items()}
-    if isinstance(obj, list):
-        return [make_serializable(v) for v in obj]
-    return obj
-
-from src.simulate import run_simulation
+from src.data_generator import generate_credit_data
+from src.simulate import run_experiment
 from src.report import generate_report
-
-OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 def main():
-    print("Running A/B test pipeline...\n")
-    results = run_simulation()
-    results = make_serializable(results)
+    print("Generating synthetic credit eligibility data...")
+    df = generate_credit_data(n=5000, seed=42)
 
-    # Save JSON
-    json_path = os.path.join(OUTPUT_DIR, "results.json")
-    with open(json_path, "w") as f:
-        json.dump(results, f, indent=2)
-    print(f"Saved results to {json_path}")
+    print("Running A/B experiment simulation...")
+    results = run_experiment(df, alpha=0.05)
 
-    # Print report
-    report = generate_report(results)
-    print(report)
+    print("\n" + generate_report(results))
 
-    return results
+    output_path = "/home/workspace/Projects/ab-testing-eligibility/results.json"
+    with open(output_path, "w") as f:
+        json.dump(results, f, indent=2, default=lambda o: float(o) if hasattr(o, 'item') else o)
+
+    print(f"\nResults saved to {output_path}")
 
 
 if __name__ == "__main__":
