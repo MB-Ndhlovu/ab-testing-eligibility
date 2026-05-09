@@ -1,72 +1,61 @@
-"""Two-proportion z-test, confidence intervals, power analysis."""
+"""Statistical analysis for A/B testing: two-proportion z-test, confidence intervals, power."""
+
 import numpy as np
 from scipy import stats
 
-def two_proportion_ztest(n1, x1, n2, x2):
-    """Two-proportion z-test.
-    
-    Returns z-statistic, p-value (two-tailed).
+
+def two_proportion_ztest(n_successes_a: int, n_trials_a: int, n_successes_b: int, n_trials_b: int) -> dict:
+    """Two-proportion z-test comparing success rates between two groups.
+
+    Returns z-statistic, p-value, 95% CI for the difference, and statistical conclusion.
     """
-    p1 = x1 / n1
-    p2 = x2 / n2
-    p_pool = (x1 + x2) / (n1 + n2)
-    se = np.sqrt(p_pool * (1 - p_pool) * (1/n1 + 1/n2))
-    z = (p1 - p2) / se
+    p_a = n_successes_a / n_trials_a
+    p_b = n_successes_b / n_trials_b
+    p_pooled = (n_successes_a + n_successes_b) / (n_trials_a + n_trials_b)
+    se = np.sqrt(p_pooled * (1 - p_pooled) * (1 / n_trials_a + 1 / n_trials_b))
+    diff = p_b - p_a
+    z = diff / se if se > 0 else 0.0
     p_value = 2 * (1 - stats.norm.cdf(abs(z)))
-    return z, p_value
 
-def confidence_interval(n1, x1, n2, x2, confidence=0.95):
-    """95% CI for the difference in proportions."""
-    p1 = x1 / n1
-    p2 = x2 / n2
-    diff = p1 - p2
-    z_crit = stats.norm.ppf(1 - (1 - confidence) / 2)
-    se = np.sqrt((p1 * (1 - p1)) / n1 + (p2 * (1 - p2)) / n2)
-    margin = z_crit * se
-    return diff - margin, diff + margin
+    # 95% CI for the difference (Wald)
+    se_diff = np.sqrt(p_a * (1 - p_a) / n_trials_a + p_b * (1 - p_b) / n_trials_b)
+    ci_lower = diff - 1.96 * se_diff
+    ci_upper = diff + 1.96 * se_diff
 
-def statistical_power(n, p1, p2, alpha=0.05):
-    """Compute statistical power given sample size and proportions."""
-    z_crit = stats.norm.ppf(1 - alpha / 2)
-    p_pool = (p1 + p2) / 2
-    se = np.sqrt(p_pool * (1 - p_pool) * (2 / n))
-    z_power = (abs(p1 - p2) / se) - z_crit
-    power = stats.norm.cdf(z_power)
-    return power
-
-def minimum_detectable_effect(n, power=0.80, alpha=0.05):
-    """Find minimum detectable effect size given n, power, alpha."""
-    z_crit = stats.norm.ppf(1 - alpha / 2)
-    z_power = stats.norm.ppf(power)
-    mde = (z_crit + z_power) * np.sqrt(0.5 * 0.5 * (2 / n))
-    return mde
-
-def test_metric(n1, x1, n2, x2, metric_name, higher_is_better=True):
-    z, p = two_proportion_ztest(n1, x1, n2, x2)
-    ci_low, ci_high = confidence_interval(n1, x1, n2, x2)
-    significant = p < 0.05
-
-    p1 = x1 / n1
-    p2 = x2 / n2
-    effect = p2 - p1
+    significant = p_value < 0.05
+    alpha = 0.05
 
     return {
-        "metric": metric_name,
-        "group_a_rate": p1,
-        "group_b_rate": p2,
-        "treatment_effect": effect,
+        "group_a_rate": round(p_a, 4),
+        "group_b_rate": round(p_b, 4),
+        "difference": round(diff, 4),
         "z_statistic": round(z, 4),
-        "p_value": round(p, 6),
-        "ci_95_low": round(ci_low, 6),
-        "ci_95_high": round(ci_high, 6),
-        "significant": significant,
-        "direction": "improvement" if (significant and effect > 0 and higher_is_better) or (significant and effect < 0 and not higher_is_better) else "degradation" if significant else "no significant difference",
+        "p_value": round(p_value, 6),
+        "ci_95_lower": round(ci_lower, 4),
+        "ci_95_upper": round(ci_upper, 4),
+        "significant_at_0.05": significant,
+        "alpha": alpha,
+        "p_pooled": round(p_pooled, 4),
     }
 
-if __name__ == "__main__":
-    # Demo
-    n = 5000
-    x1 = int(0.62 * n)
-    x2 = int(0.71 * n)
-    result = test_metric(n, x1, n, x2, "approval_rate", higher_is_better=True)
-    print(result)
+
+def compute_power(n_a: int, n_b: int, p_a: float, p_b: float, alpha: float = 0.05) -> float:
+    """Compute statistical power for a two-proportion z-test."""
+    p_pooled = (p_a + p_b) / 2
+    se = np.sqrt(p_pooled * (1 - p_pooled) * (1 / n_a + 1 / n_b))
+    diff = abs(p_b - p_a)
+    z_crit = stats.norm.ppf(1 - alpha / 2)
+    z_power = (diff / se) - z_crit if se > 0 else 0.0
+    power = stats.norm.cdf(z_power)
+    return round(power, 4)
+
+
+def minimum_detectable_effect(n_a: int, n_b: int, alpha: float = 0.05, power: float = 0.80) -> float:
+    """Minimum detectable effect (absolute) for given sample sizes and power."""
+    p_a_guess = 0.5  # conservative midpoint
+    p_pooled = p_a_guess
+    se = np.sqrt(p_pooled * (1 - p_pooled) * (1 / n_a + 1 / n_b))
+    z_crit = stats.norm.ppf(1 - alpha / 2)
+    z_beta = stats.norm.ppf(power)
+    mde = (z_crit + z_beta) * se
+    return round(mde, 4)

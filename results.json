@@ -1,45 +1,46 @@
 {
-  "sample_size": 5000,
-  "group_a": {
-    "approved": 3132,
-    "rejected": 1868,
-    "defaults": 347,
-    "approval_rate": 0.6264,
-    "default_rate": 0.11079182630906768,
-    "avg_loan_size": 18606.977707050984,
-    "processing_time": 4.196500110880731
-  },
-  "group_b": {
-    "approved": 3603,
-    "rejected": 1397,
-    "defaults": 330,
-    "approval_rate": 0.7206,
-    "default_rate": 0.09159034138218151,
-    "avg_loan_size": 19055.14200086312,
-    "processing_time": 3.917548802294828
+  "summary": {
+    "A": {
+      "n_total": 2500,
+      "n_approved": 1565,
+      "approval_rate": 0.626,
+      "default_rate": 0.115,
+      "avg_loan_size": 49338.53,
+      "avg_processing_hours": 48.5
+    },
+    "B": {
+      "n_total": 2500,
+      "n_approved": 1763,
+      "approval_rate": 0.7052,
+      "default_rate": 0.0981,
+      "avg_loan_size": 48803.64,
+      "avg_processing_hours": 45.0
+    }
   },
   "approval_rate_test": {
-    "metric": "approval_rate",
-    "group_a_rate": 0.6264,
-    "group_b_rate": 0.7206,
-    "treatment_effect": 0.09420000000000006,
-    "z_statistic": -10.0441,
+    "group_a_rate": 0.626,
+    "group_b_rate": 0.7052,
+    "difference": 0.0792,
+    "z_statistic": 5.9353,
     "p_value": 0.0,
-    "ci_95_low": -0.112489,
-    "ci_95_high": -0.075911,
-    "significant": true,
-    "direction": "improvement"
+    "ci_95_lower": 0.0531,
+    "ci_95_upper": 0.1053,
+    "significant_at_0.05": true,
+    "alpha": 0.05,
+    "p_pooled": 0.6656
   },
   "default_rate_test": {
-    "metric": "default_rate",
-    "group_a_rate": 0.0694,
-    "group_b_rate": 0.066,
-    "treatment_effect": -0.0034000000000000002,
-    "z_statistic": 0.6767,
-    "p_value": 0.498616,
-    "ci_95_low": -0.006448,
-    "ci_95_high": 0.013248,
-    "significant": false,
-    "direction": "no significant difference"
-  }
+    "group_a_rate": 0.1144,
+    "group_b_rate": 0.0976,
+    "difference": -0.0168,
+    "z_statistic": -1.5764,
+    "p_value": 0.114943,
+    "ci_95_lower": -0.0378,
+    "ci_95_upper": 0.0042,
+    "significant_at_0.05": false,
+    "alpha": 0.05,
+    "p_pooled": 0.1055
+  },
+  "approval_power": 1.0,
+  "default_power": 0.3509
 }
