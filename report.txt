@@ -1,85 +1,56 @@
-╔══════════════════════════════════════════════════════════════╗
-║        A/B TESTING FRAMEWORK FOR CREDIT ELIGIBILITY          ║
-║                    FINAL ANALYSIS REPORT                      ║
-╚══════════════════════════════════════════════════════════════╝
+============================================================
+  A/B TEST REPORT — Credit Eligibility Model
+============================================================
 
-Report Generated: 2026-05-07 00:14:34
+EXPERIMENT SETUP
+  Sample size       : 5,000 applicants
+  Allocation        : 50% control (A) / 50% treatment (B)
+  Significance level: alpha = 0.05
 
-┌──────────────────────────────────────────────────────────────┐
-│                     EXECUTIVE SUMMARY                        │
-└──────────────────────────────────────────────────────────────┘
+------------------------------------------------------------
+GROUP SUMMARY
+------------------------------------------------------------
+  Metric                      Group A      Group B
+  ---------------------- ------------ ------------
+  Approval Rate                63.84%       72.96%
+  Default Rate                   8.40%        7.07%
+  Avg Loan Size (ZAR)        R630,038     R326,301
+  Avg Processing Time        13.6 min     14.4 min
 
-  • Approval Rate: SIGNIFICANT
-    Difference: +0.0712 (B vs A)
+------------------------------------------------------------
+STATISTICAL RESULTS
+------------------------------------------------------------
 
-  • Default Rate:  SIGNIFICANT
-    Difference: -0.0199 (B vs A)
+1. APPROVAL RATE
+   Group A rate     : 63.84%
+   Group B rate     : 72.96%
+   Treatment effect : +0.0912 (+9.12 pp)
+   z-statistic      : +6.9355
+   p-value          : 0.000000
+   95% CI           : [+0.0656, +0.1168]
+   Significant?     : YES
 
-┌──────────────────────────────────────────────────────────────┐
-│                       SAMPLE OVERVIEW                        │
-└──────────────────────────────────────────────────────────────┘
+2. DEFAULT RATE
+   Group A rate     : 8.40%
+   Group B rate     : 7.07%
+   Treatment effect : -0.0132 (-1.32 pp)
+   z-statistic      : -1.4494
+   p-value          : 0.147224
+   95% CI           : [-0.0312, +0.0048]
+   Significant?     : NO
 
-  Group A (Control):   2,500 applicants
-  Group B (Treatment): 2,500 applicants
-  Total:              5,000 applicants
+------------------------------------------------------------
+POWER ANALYSIS
+------------------------------------------------------------
+   Observed MDE     : 0.0912 (9.12 pp)
+   MDE for 80% power: 0.0381 (3.81 pp)
+   Achieved power   : 100.00%
 
-┌──────────────────────────────────────────────────────────────┐
-│                         KEY METRICS                         │
-└──────────────────────────────────────────────────────────────┘
+------------------------------------------------------------
+RECOMMENDATION
+------------------------------------------------------------
+CAUTION — Approve with monitoring.
+  -> Significantly higher approval rate but default rate difference is not significant.
+  -> Ensure default rate does not worsen before full rollout.
 
-  Metric                    Group A    Group B       Diff   Sig?
-  ----------------------------------------------------------
-  Approval Rate              0.6348     0.7060    +0.0712    Yes
-  Default Rate               0.1014     0.0816    -0.0199    Yes
-  Avg Loan Amount             80.34      79.32      -1.02    N/A
-  Avg Processing Time          6.21       6.28      +0.07    N/A
-
-┌──────────────────────────────────────────────────────────────┐
-│                  STATISTICAL TEST RESULTS                    │
-└──────────────────────────────────────────────────────────────┘
-
-  Approval Rate Z-Test:
-    H₀: p_B - p_A = 0
-    p̂_A = 0.6348, p̂_B = 0.7060
-    Difference = 0.0712
-    Z-statistic = 5.3552
-    P-value     = 0.000000
-    95% CI: [0.0452, 0.0972]
-    Result: REJECT H₀ - Significant difference
-
-  Default Rate Z-Test:
-    H₀: p_B - p_A = 0
-    p̂_A = 0.1014, p̂_B = 0.0816
-    Difference = -0.0199
-    Z-statistic = -1.9965
-    P-value     = 0.045880
-    95% CI: [-0.0395, -0.0003]
-    Result: REJECT H₀ - Significant difference
-
-┌──────────────────────────────────────────────────────────────┐
-│                      POWER ANALYSIS                         │
-└──────────────────────────────────────────────────────────────┘
-
-  Approval Rate:
-    Observed MDE: 0.0712
-    Achieved Power: 0.0003
-    Sample for 80% power: 685
-
-  Default Rate:
-    Observed MDE: 0.0199
-    Achieved Power: 0.3927
-    Sample for 80% power: 3,939
-
-┌──────────────────────────────────────────────────────────────┐
-│                  FINAL RECOMMENDATION                        │
-└──────────────────────────────────────────────────────────────┘
-
-  ★ RECOMMENDATION: ADOPT the new credit eligibility model
-
-    Justification:
-    - Approval rate significantly increased (+7.1%)
-    - Default rate significantly decreased (-2.0%)
-    - Both key metrics moved in favorable directions
-
-──────────────────────────────────────────────────────────────
-End of Report
+============================================================
