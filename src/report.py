@@ -1,47 +1,80 @@
-def generate_report(results):
+"""Generate readable summary report."""
+import json
+
+def format_rate(val):
+    return f"{val*100:.2f}%"
+
+def generate_report(results, output_path=None):
+    group_a = results["group_a"]
+    group_b = results["group_b"]
+    approval = results["approval_rate_test"]
+    default = results["default_rate_test"]
+
     lines = []
     lines.append("=" * 60)
-    lines.append("        A/B TESTING FRAMEWORK — CREDIT ELIGIBILITY")
+    lines.append("  A/B TESTING FRAMEWORK — CREDIT ELIGIBILITY REPORT")
     lines.append("=" * 60)
     lines.append("")
-    lines.append("EXPERIMENT SUMMARY")
-    lines.append("-" * 40)
-    lines.append(f"{'Metric':<25} {'Group A (Control)':<20} {'Group B (Treatment)':<20}")
-    lines.append("-" * 40)
-    lines.append(f"{'Sample size':.<25} {results['group_a']['n']:<20} {results['group_b']['n']:<20}")
-    lines.append(f"{'Approval rate':.<25} {results['group_a']['approval_rate']:<20.4f} {results['group_b']['approval_rate']:<20.4f}")
-    lines.append(f"{'Default rate':.<25} {results['group_a']['default_rate']:<20.4f} {results['group_b']['default_rate']:<20.4f}")
-    lines.append(f"{'Avg loan size (Rth)':.<25} {results['group_a']['avg_loan_size']:<20.2f} {results['group_b']['avg_loan_size']:<20.2f}")
-    lines.append(f"{'Avg processing time (min)':.<25} {results['group_a']['avg_processing_time']:<20.2f} {results['group_b']['avg_processing_time']:<20.2f}")
+    lines.append(f"  Sample size per group: {results['sample_size']:,}")
     lines.append("")
-    lines.append("STATISTICAL TESTS (Two-Proportion Z-Test, α=0.05)")
+    lines.append("-" * 60)
+    lines.append("  GROUP SUMMARY")
+    lines.append("-" * 60)
+    lines.append(f"  {'Metric':<20} {'Group A (Control)':<20} {'Group B (Treatment)':<20}")
+    lines.append(f"  {'-'*18} {'-'*18} {'-'*18}")
+    lines.append(f"  {'Approval Rate':<20} {format_rate(group_a['approval_rate']):<20} {format_rate(group_b['approval_rate']):<20}")
+    lines.append(f"  {'Default Rate':<20} {format_rate(group_a['default_rate']):<20} {format_rate(group_b['default_rate']):<20}")
+    lines.append(f"  {'Avg Loan Size':<20} {'R{:,.2f}'.format(group_a['avg_loan_size']):<20} {'R{:,.2f}'.format(group_b['avg_loan_size']):<20}")
+    lines.append(f"  {'Processing Time':<20} {group_a['processing_time']:.2f} hrs{'':>6} {group_b['processing_time']:.2f} hrs")
+    lines.append("")
+    lines.append("-" * 60)
+    lines.append("  STATISTICAL TESTS (Two-Proportion Z-Test, α=0.05)")
     lines.append("-" * 60)
 
-    # Approval rate test
-    at = results["approval_rate_test"]
-    lines.append("")
-    lines.append("APPROVAL RATE:")
-    lines.append(f"  Z-statistic : {at['z_statistic']}")
-    lines.append(f"  P-value     : {at['p_value']}")
-    lines.append(f"  95% CI      : [{at['ci_lower']}, {at['ci_upper']}]")
-    sig_word = "SIGNIFICANT" if at["significant"] else "NOT SIGNIFICANT"
-    lines.append(f"  Result      : {sig_word}")
-    lines.append("")
+    for test_name, test in [("Approval Rate", approval), ("Default Rate", default)]:
+        lines.append(f"\n  >> {test_name}")
+        lines.append(f"     Treatment effect: {'+' if test['treatment_effect'] >= 0 else ''}{test['treatment_effect']:.4f}")
+        lines.append(f"     Z-statistic:     {test['z_statistic']:.4f}")
+        lines.append(f"     P-value:         {test['p_value']:.6f}")
+        lines.append(f"     95% CI:          [{test['ci_95_low']:.4f}, {test['ci_95_high']:.4f}]")
+        sig_word = "SIGNIFICANT" if test['significant'] else "NOT SIGNIFICANT"
+        direction = test['direction'].upper()
+        lines.append(f"     Result:          {sig_word} — {direction}")
 
-    # Default rate test
-    dt = results["default_rate_test"]
-    lines.append("DEFAULT RATE:")
-    lines.append(f"  Z-statistic : {dt['z_statistic']}")
-    lines.append(f"  P-value     : {dt['p_value']}")
-    lines.append(f"  95% CI      : [{dt['ci_lower']}, {dt['ci_upper']}]")
-    sig_word = "SIGNIFICANT" if dt["significant"] else "NOT SIGNIFICANT"
-    lines.append(f"  Result      : {sig_word}")
+    lines.append("")
+    lines.append("=" * 60)
+    lines.append("  RECOMMENDATION")
+    lines.append("=" * 60)
+    if approval['significant'] and approval['direction'] == 'improvement':
+        approval_rec = "APPROVE — new model significantly increases approval rate"
+    elif approval['significant']:
+        approval_rec = "REJECT — new model significantly decreases approval rate"
+    else:
+        approval_rec = "INCONCLUSIVE — no significant difference in approval rate"
+
+    if default['significant'] and default['direction'] == 'improvement':
+        default_rec = "APPROVE — new model significantly reduces default rate"
+    elif default['significant']:
+        default_rec = "REJECT — new model significantly increases default rate"
+    else:
+        default_rec = "INCONCLUSIVE — no significant difference in default rate"
+
+    lines.append(f"  Approval Rate: {approval_rec}")
+    lines.append(f"  Default Rate:  {default_rec}")
     lines.append("")
     lines.append("=" * 60)
 
-    return "\n".join(lines)
+    report_text = "\n".join(lines)
+    print(report_text)
+
+    if output_path:
+        with open(output_path, "w") as f:
+            f.write(report_text)
+        print(f"\n[Report saved to {output_path}]")
+
+    return report_text
 
 if __name__ == "__main__":
-    from src.simulate import run_experiment
-    results = run_experiment()
-    print(generate_report(results))
+    from simulate import run_simulation
+    results = run_simulation()
+    generate_report(results)
