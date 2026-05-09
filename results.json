@@ -1,41 +1,34 @@
 {
-  "group_a": {
-    "n": 2500,
-    "approval_rate": 0.6212,
-    "default_rate": 0.1128,
-    "avg_loan_size": 42548.2646,
-    "avg_processing_time": 7.0402
-  },
-  "group_b": {
-    "n": 2500,
-    "approval_rate": 0.6932,
-    "default_rate": 0.0884,
-    "avg_loan_size": 52302.8095,
-    "avg_processing_time": 6.6211
-  },
-  "approval_rate_test": {
-    "z_statistic": 5.3631,
+  "approval_rate": {
+    "group_a": 0.6202,
+    "group_b": 0.7048,
+    "treatment_effect": 0.08460000000000001,
+    "z_statistic": -8.945621886900666,
     "p_value": 0.0,
-    "ci_lower": 0.045763,
-    "ci_upper": 0.098237,
-    "difference": 0.072,
-    "power": 0.9997,
-    "mde": 0.04,
-    "significant": true
+    "ci_lower": -0.10306134013918056,
+    "ci_upper": -0.06613865986081946,
+    "significant": true,
+    "power": 0.9999999999985824
   },
-  "default_rate_test": {
-    "z_statistic": -2.8679,
-    "p_value": 0.004132,
-    "ci_lower": -0.041061,
-    "ci_upper": -0.007739,
-    "difference": -0.0244,
-    "power": 0.8183,
-    "mde": 0.03,
-    "significant": true
+  "default_rate": {
+    "group_a": 0.10899709771041599,
+    "group_b": 0.08967082860385925,
+    "treatment_effect": -0.019326269106556743,
+    "z_statistic": 3.2306302274175698,
+    "p_value": 0.0012351762180164982,
+    "ci_lower": 0.007607497044973873,
+    "ci_upper": 0.031045041168139612,
+    "significant": true,
+    "power": 0.8980762951438277
   },
-  "alpha": 0.05,
-  "interpretations": {
-    "approval": "[SIGNIFICANT] z=5.363, p=0.0000, diff=0.0720 (95% CI: [0.0458, 0.0982]). Group B has a higher approval rate (statistically significant).",
-    "default": "[SIGNIFICANT] z=-2.868, p=0.0041, diff=-0.0244 (95% CI: [-0.0411, -0.0077]). Group B has a lower default rate (statistically significant)."
+  "avg_loan_size": {
+    "group_a": 18778.221825314733,
+    "group_b": 19209.167799646995,
+    "treatment_effect": 430.94597433226227
+  },
+  "avg_processing_time": {
+    "group_a": 6.4188440951935375,
+    "group_b": 5.853760608615473,
+    "treatment_effect": -0.5650834865780645
   }
 }

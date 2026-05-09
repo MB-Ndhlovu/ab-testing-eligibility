@@ -1,75 +1,51 @@
-"""Generate synthetic credit eligibility data for A/B testing."""
-
+"""Generate synthetic loan applicant data for A/B test."""
 import numpy as np
-from typing import Tuple
 
 np.random.seed(42)
 
+N = 5000
 
-def generate_credit_data(n_samples: int = 5000) -> Tuple[dict, dict]:
-    """
-    Generate synthetic credit eligibility data for control and treatment groups.
+# Group A (control): approval ~0.62, default ~0.11
+group_a_approved = np.random.random(N) < 0.62
+group_a_defaulted = np.random.random(N) < 0.11
 
-    Args:
-        n_samples: Total number of samples (split evenly between groups).
+# Group B (treatment): approval ~0.71, default ~0.09
+group_b_approved = np.random.random(N) < 0.71
+group_b_defaulted = np.random.random(N) < 0.09
 
-    Returns:
-        Tuple of (group_a_data, group_b_data) dictionaries containing:
-            - approvals: array of 0/1 (approved/not approved)
-            - defaults: array of 0/1 (defaulted/not defaulted)
-            - loan_sizes: array of loan amounts
-            - processing_times: array of processing times in hours
-    """
-    half = n_samples // 2
+# Continuous metrics with noise
+group_a_loan_size = np.abs(np.random.normal(18500, 7500, N))
+group_a_processing_time = np.abs(np.random.normal(6.4, 2.1, N))
 
-    # Group A (Control): current model
-    # Approval rate ~62%, default rate ~11%
-    approval_probs_a = np.random.beta(62, 38, half)  # realistic binomial approximation
-    defaults_probs_a = np.random.beta(11, 89, half)
+group_b_loan_size = np.abs(np.random.normal(19200, 7800, N))
+group_b_processing_time = np.abs(np.random.normal(5.9, 2.0, N))
 
-    group_a = {
-        "approvals": (np.random.random(half) < approval_probs_a).astype(int),
-        "defaults": (np.random.random(half) < defaults_probs_a).astype(int),
-        "loan_sizes": np.random.lognormal(mean=10.5, sigma=0.6, size=half),  # skewed loan amounts
-        "processing_times": np.random.gamma(shape=2, scale=2, size=half) + np.random.uniform(1, 5, half),
-    }
+# Apply defaults: only approved applications can default
+group_a_defaulted = group_a_defaulted & group_a_approved
+group_b_defaulted = group_b_defaulted & group_b_approved
 
-    # Group B (Treatment): new model
-    # Approval rate ~71%, default rate ~9%
-    approval_probs_b = np.random.beta(71, 29, half)
-    defaults_probs_b = np.random.beta(9, 91, half)
-
-    group_b = {
-        "approvals": (np.random.random(half) < approval_probs_b).astype(int),
-        "defaults": (np.random.random(half) < defaults_probs_b).astype(int),
-        "loan_sizes": np.random.lognormal(mean=10.7, sigma=0.55, size=half),  # slightly higher avg loan
-        "processing_times": np.random.gamma(shape=2.2, scale=1.8, size=half) + np.random.uniform(0.8, 4.5, half),
-    }
-
-    return group_a, group_b
-
-
-def compute_group_stats(group_data: dict) -> dict:
-    """Compute summary statistics for a group."""
-    n = len(group_data["approvals"])
+def get_summary(group_approved, group_defaulted, group_loan_size, group_processing_time):
+    n = len(group_approved)
+    approval_rate = group_approved.mean()
+    default_rate = group_defaulted.sum() / group_approved.sum()
+    avg_loan_size = group_loan_size[group_approved].mean()
+    avg_processing_time = group_processing_time[group_approved].mean()
     return {
         "n": n,
-        "approval_rate": group_data["approvals"].mean(),
-        "default_rate": group_data["defaults"].mean(),
-        "avg_loan_size": group_data["loan_sizes"].mean(),
-        "avg_processing_time": group_data["processing_times"].mean(),
+        "approval_rate": approval_rate,
+        "default_rate": default_rate,
+        "avg_loan_size": avg_loan_size,
+        "avg_processing_time": avg_processing_time,
     }
 
+group_a_summary = get_summary(group_a_approved, group_a_defaulted, group_a_loan_size, group_a_processing_time)
+group_b_summary = get_summary(group_b_approved, group_b_defaulted, group_b_loan_size, group_b_processing_time)
 
 if __name__ == "__main__":
-    group_a, group_b = generate_credit_data(5000)
-    stats_a = compute_group_stats(group_a)
-    stats_b = compute_group_stats(group_b)
-
-    print("Group A (Control):")
-    for k, v in stats_a.items():
+    print("=== Group A (Control) ===")
+    for k, v in group_a_summary.items():
         print(f"  {k}: {v:.4f}")
 
-    print("\nGroup B (Treatment):")
-    for k, v in stats_b.items():
+    print("\n=== Group B (Treatment) ===")
+    for k, v in group_b_summary.items():
         print(f"  {k}: {v:.4f}")
