@@ -2,34 +2,68 @@
 
 ## Business Problem
 
-A lender wants to evaluate whether a new credit eligibility model (Group B) improves key lending metrics compared to their current model (Group A). The experiment runs on synthetic applicant data and measures:
+A lender wants to evaluate whether a new credit eligibility model (Group B) outperforms the current model (Group A). The goal is to make data-driven decisions about adopting the new model by measuring its impact on key business metrics.
 
-- **Approval Rate** — higher is better (more loans originated)
-- **Default Rate** — lower is better (less credit risk)
-- **Average Loan Size** — secondary metric
-- **Processing Time** — secondary metric (operational efficiency)
+## Key Metrics
+
+- **Approval Rate**: Percentage of loan applications approved. Higher is generally better for business revenue.
+- **Default Rate**: Percentage of approved loans that default. Lower is better for risk management.
+- **Average Loan Size**: Average loan amount disbursed.
+- **Processing Time**: Average time to process a loan application.
 
 ## Methodology
 
-1. **Generate synthetic data**: 5,000 simulated credit applicants split 50/50 into control (A) and treatment (B) groups
-2. **Apply eligibility rules**: Group A uses current (tighter) rules; Group B uses new (looser) rules with slight noise for realism
-3. **Simulate outcomes**: Each applicant who is approved may default; loan size and processing time vary by credit tier
-4. **Statistical testing**: Two-proportion z-test for approval_rate and default_rate; report z-statistic, p-value, 95% CI, and significance at α=0.05
-5. **Decision**: Launch recommendation based on statistical and business significance
+### Data Generation
 
-## Key Results (Interpretation)
+- Synthetic dataset of 5,000 loan applications split evenly between control (A) and treatment (B)
+- Group A (Control): Current eligibility model
+  - Approval rate: ~62%
+  - Default rate: ~11%
+- Group B (Treatment): New eligibility model
+  - Approval rate: ~71% (improved)
+  - Default rate: ~9% (improved)
+- Realistic noise added to simulate real-world variation
 
-| Metric | Group A | Group B | Δ | z | p-value | Significant? |
-|--------|---------|---------|---|----|--------|-------------|
-| Approval Rate | ~62% | ~71% | +9pp | ... | <0.05 | Yes → B better |
-| Default Rate | ~11% | ~9% | −2pp | ... | <0.05 | Yes → B better |
+### Statistical Analysis
 
-**Recommendation**: Adopt Group B model if results are significant — it approves more applicants with a lower default rate, a rare win-win scenario.
+Two-proportion z-test for each binary metric (approval_rate, default_rate):
+
+- **Null Hypothesis (H₀)**: No difference between groups
+- **Alternative (H₁)**: Significant difference exists
+- **Significance Level**: α = 0.05
+- **Confidence Interval**: 95%
+
+Metrics computed:
+- Z-statistic
+- P-value
+- 95% Confidence Interval for the difference
+- Statistical power
+- Minimum Detectable Effect (MDE)
 
 ## Files
 
-- `src/data_generator.py` — Synthetic data generation
-- `src/statistical.py` — Two-proportion z-test, CI, power, MDE
-- `src/simulate.py` — Experiment runner
-- `src/report.py` — Human-readable summary
-- `run_pipeline.py` — End-to-end execution
+```
+ab-testing-eligibility/
+├── README.md
+├── requirements.txt
+├── run_pipeline.py
+└── src/
+    ├── __init__.py
+    ├── data_generator.py
+    ├── statistical.py
+    ├── simulate.py
+    └── report.py
+```
+
+## Usage
+
+```bash
+pip install -r requirements.txt
+python run_pipeline.py
+```
+
+## Conclusion Framework
+
+Results are classified as:
+- **Significant**: p-value < 0.05 — recommend adopting the new model if improvements are in desired direction
+- **Not Significant**: p-value ≥ 0.05 — insufficient evidence to change current model

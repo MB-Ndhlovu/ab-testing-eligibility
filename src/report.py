@@ -1,117 +1,110 @@
-"""Generate a human-readable summary report from experiment results."""
+"""Generate readable summary reports for A/B test results."""
 
-from typing import Any
-
-
-def format_rate(value: float) -> str:
-    return f"{value:.2%}"
+from typing import Dict, Any
+from src.simulate import interpret_results
 
 
-def generate_report(results: dict) -> str:
+def generate_report(results: Dict[str, Any]) -> str:
     """
-    Build a plain-text summary report from the experiment results dict.
+    Generate a formatted text report of A/B test results.
+
+    Args:
+        results: Dictionary from run_experiment()
+
+    Returns:
+        Formatted report string
     """
-    meta = results["_meta"]
-    appr = results["approval_rate"]
-    defr = results["default_rate"]
-
-    a_sum = meta["group_a_summary"]
-    b_sum = meta["group_b_summary"]
-
-    # Pre-format values to avoid quote nesting hell
-    loan_a = a_sum.get("avg_loan_size", 0)
-    loan_b = b_sum.get("avg_loan_size", 0)
-    proc_a = a_sum.get("avg_processing_time", 0)
-    proc_b = b_sum.get("avg_processing_time", 0)
+    interpretations = interpret_results(results)
 
     lines = [
-        "=" * 60,
-        "  A/B TEST REPORT — Credit Eligibility Model",
-        "=" * 60,
+        "=" * 70,
+        "A/B TESTING FRAMEWORK FOR CREDIT ELIGIBILITY",
+        "=" * 70,
         "",
-        "EXPERIMENT SETUP",
-        f"  Sample size       : {meta['n_total']:,} applicants",
-        f"  Allocation        : 50% control (A) / 50% treatment (B)",
-        f"  Significance level: alpha = 0.05",
+        "EXECUTIVE SUMMARY",
+        "-" * 40,
+        f"Group A (Control): {results['group_a']['n']} samples",
+        f"  Approval Rate:  {results['group_a']['approval_rate']:.4f}",
+        f"  Default Rate:  {results['group_a']['default_rate']:.4f}",
+        f"  Avg Loan Size: ${results['group_a']['avg_loan_size']:.2f}",
+        f"  Avg Processing Time: {results['group_a']['avg_processing_time']:.2f} hours",
         "",
-        "-" * 60,
-        "GROUP SUMMARY",
-        "-" * 60,
-        f"  {'Metric':<22} {'Group A':>12} {'Group B':>12}",
-        f"  {'-'*22} {'-'*12} {'-'*12}",
-        f"  {'Approval Rate':<22} {format_rate(a_sum['approval_rate']):>12} {format_rate(b_sum['approval_rate']):>12}",
-        f"  {'Default Rate':<22}  {format_rate(a_sum['default_rate']):>12} {format_rate(b_sum['default_rate']):>12}",
-        f"  {'Avg Loan Size (ZAR)':<22} {'R' + f'{loan_a:,.0f}':>12} {'R' + f'{loan_b:,.0f}':>12}",
-        f"  {'Avg Processing Time':<22} {f'{proc_a:.1f} min':>12} {f'{proc_b:.1f} min':>12}",
+        f"Group B (Treatment): {results['group_b']['n']} samples",
+        f"  Approval Rate:  {results['group_b']['approval_rate']:.4f}",
+        f"  Default Rate:  {results['group_b']['default_rate']:.4f}",
+        f"  Avg Loan Size: ${results['group_b']['avg_loan_size']:.2f}",
+        f"  Avg Processing Time: {results['group_b']['avg_processing_time']:.2f} hours",
         "",
-        "-" * 60,
-        "STATISTICAL RESULTS",
-        "-" * 60,
+        "=" * 70,
+        "STATISTICAL TESTS (Two-Proportion Z-Test, α=0.05)",
+        "=" * 70,
         "",
-        "1. APPROVAL RATE",
-        f"   Group A rate     : {format_rate(appr['group_A']['rate'])}",
-        f"   Group B rate     : {format_rate(appr['group_B']['rate'])}",
-        f"   Treatment effect : {appr['treatment_effect']:+.4f} ({appr['treatment_effect']*100:+.2f} pp)",
-        f"   z-statistic      : {appr['z_statistic']:+.4f}",
-        f"   p-value          : {appr['p_value']:.6f}",
-        f"   95% CI           : [{appr['ci_lower']:+.4f}, {appr['ci_upper']:+.4f}]",
-        f"   Significant?     : {'YES' if appr['significant'] else 'NO'}",
+        "[1] APPROVAL RATE",
+        "-" * 40,
+        f"  Observed Difference:   {results['approval_rate_test']['difference']:+.4f}",
+        f"  95% CI for Difference: [{results['approval_rate_test']['ci_lower']:.4f}, {results['approval_rate_test']['ci_upper']:.4f}]",
+        f"  Z-Statistic:           {results['approval_rate_test']['z_statistic']:.4f}",
+        f"  P-Value:               {results['approval_rate_test']['p_value']:.6f}",
+        f"  Statistical Power:      {results['approval_power']:.4f}",
+        f"  Min Detectable Effect: {results['approval_mde']:.4f}",
         "",
-        "2. DEFAULT RATE",
-        f"   Group A rate     : {format_rate(defr['group_A']['rate'])}",
-        f"   Group B rate     : {format_rate(defr['group_B']['rate'])}",
-        f"   Treatment effect : {defr['treatment_effect']:+.4f} ({defr['treatment_effect']*100:+.2f} pp)",
-        f"   z-statistic      : {defr['z_statistic']:+.4f}",
-        f"   p-value          : {defr['p_value']:.6f}",
-        f"   95% CI           : [{defr['ci_lower']:+.4f}, {defr['ci_upper']:+.4f}]",
-        f"   Significant?     : {'YES' if defr['significant'] else 'NO'}",
+        f"  Conclusion: {interpretations['approval']}",
         "",
-        "-" * 60,
-        "POWER ANALYSIS",
-        "-" * 60,
-        f"   Observed MDE     : {meta['mde_observed']:.4f} ({meta['mde_observed']*100:.2f} pp)",
-        f"   MDE for 80% power: {meta['mde_required_for_80_power']:.4f} ({meta['mde_required_for_80_power']*100:.2f} pp)",
-        f"   Achieved power   : {meta['power_approval_test']:.2%}",
+        "[2] DEFAULT RATE",
+        "-" * 40,
+        f"  Observed Difference:   {results['default_rate_test']['difference']:+.4f}",
+        f"  95% CI for Difference: [{results['default_rate_test']['ci_lower']:.4f}, {results['default_rate_test']['ci_upper']:.4f}]",
+        f"  Z-Statistic:           {results['default_rate_test']['z_statistic']:.4f}",
+        f"  P-Value:               {results['default_rate_test']['p_value']:.6f}",
+        f"  Statistical Power:      {results['default_power']:.4f}",
+        f"  Min Detectable Effect: {results['default_mde']:.4f}",
         "",
-        "-" * 60,
+        f"  Conclusion: {interpretations['default']}",
+        "",
+        "=" * 70,
         "RECOMMENDATION",
-        "-" * 60,
+        "-" * 40,
     ]
 
-    sig_appr = appr["significant"]
-    sig_defr = defr["significant"]
+    # Determine overall recommendation
+    ar_sig = results["approval_rate_test"]["p_value"] < results["alpha"]
+    dr_sig = results["default_rate_test"]["p_value"] < results["alpha"]
 
-    if sig_appr and sig_defr:
-        verdict = (
-            "ADOPT the new model (Group B).\n"
-            "  -> Significantly higher approval rate (+approval)\n"
-            "  -> Significantly lower default rate (-risk)\n"
-            "  -> Rare win-win: more loans with less credit risk."
-        )
-    elif sig_appr:
-        verdict = (
-            "CAUTION — Approve with monitoring.\n"
-            "  -> Significantly higher approval rate but default rate difference is not significant.\n"
-            "  -> Ensure default rate does not worsen before full rollout."
-        )
-    elif sig_defr:
-        verdict = (
-            "REJECT the new model.\n"
-            "  -> Lower default rate is not enough — approval rate is not significantly better.\n"
-            "  -> The new model increases credit risk without sufficient business upside."
-        )
+    if ar_sig and dr_sig:
+        ar_better = results["approval_rate_test"]["difference"] > 0
+        dr_better = results["default_rate_test"]["difference"] < 0  # lower is better
+
+        if ar_better and dr_better:
+            lines.append("ADOPT the new credit eligibility model (Group B).")
+            lines.append("  - Significantly higher approval rate")
+            lines.append("  - Significantly lower default rate")
+        elif ar_better and not dr_better:
+            lines.append("CAUTION: Higher approval rate but worse default rate.")
+            lines.append("  Further analysis required on risk-adjusted returns.")
+        elif not ar_better and dr_better:
+            lines.append("CAUTION: Lower default rate but lower approval rate.")
+            lines.append("  Trade-off may favor one metric depending on business priorities.")
+        else:
+            lines.append("REJECT the new model — both metrics moved in undesirable direction.")
+    elif ar_sig or dr_sig:
+        lines.append("PARTIAL SUPPORT for the new model.")
+        if ar_sig:
+            lines.append(f"  - Approval rate {'improved' if results['approval_rate_test']['difference'] > 0 else 'worsened'} significantly")
+        if dr_sig:
+            lines.append(f"  - Default rate {'improved' if results['default_rate_test']['difference'] < 0 else 'worsened'} significantly")
+        lines.append("  Consider a longer test or larger sample for the non-significant metric.")
     else:
-        verdict = (
-            "INCONCLUSIVE — Run a larger experiment.\n"
-            "  -> Neither approval rate nor default rate shows a statistically significant difference.\n"
-            "  -> Consider increasing sample size or revisiting the model."
-        )
+        lines.append("INSUFFICIENT EVIDENCE to change the current model.")
+        lines.append("  Neither metric showed a statistically significant difference.")
 
-    lines.extend([verdict, "", "=" * 60])
+    lines.append("")
+    lines.append("=" * 70)
+
     return "\n".join(lines)
 
 
 if __name__ == "__main__":
     from src.simulate import run_experiment
+
     results = run_experiment()
     print(generate_report(results))

@@ -1,106 +1,115 @@
-"""Run the A/B experiment simulation and compute treatment effects."""
+"""Run A/B test experiment simulation and compute results."""
 
-import json
-import numpy as np
-from src.data_generator import generate_applicants, assign_outcomes, compute_summary
-from src.statistical import two_proportion_ztest, compute_power, minimum_detectable_effect
-
-
-def make_json_safe(obj):
-    """Convert numpy types to native Python for JSON serialization."""
-    if isinstance(obj, dict):
-        return {k: make_json_safe(v) for k, v in obj.items()}
-    if isinstance(obj, (list, tuple)):
-        return [make_json_safe(v) for v in obj]
-    if isinstance(obj, np.bool_):
-        return bool(obj)
-    if isinstance(obj, (np.integer,)):
-        return int(obj)
-    if isinstance(obj, (np.floating,)):
-        return float(obj)
-    return obj
+from typing import Dict, Any
+from src.data_generator import generate_credit_data, compute_group_stats
+from src.statistical import two_proportion_z_test, statistical_power, minimum_detectable_effect
 
 
-def run_experiment(n: int = 5000, seed: int = 42) -> dict:
+def run_experiment(n_samples: int = 5000, alpha: float = 0.05) -> Dict[str, Any]:
     """
-    Execute the full A/B experiment pipeline.
+    Run the complete A/B experiment simulation.
+
+    Args:
+        n_samples: Total number of samples
+        alpha: Significance level
+
+    Returns:
+        Dictionary containing all experiment results
     """
-    df = generate_applicants(n)
-    df = assign_outcomes(df)
-    summary = compute_summary(df)
+    # Generate data
+    group_a, group_b = generate_credit_data(n_samples)
 
-    results = {}
+    # Compute group statistics
+    stats_a = compute_group_stats(group_a)
+    stats_b = compute_group_stats(group_b)
 
-    for metric in ["approval_rate", "default_rate"]:
-        grp_a = summary["A"]
-        grp_b = summary["B"]
+    # Test approval rate
+    approval_result = two_proportion_z_test(
+        n1=stats_a["n"],
+        p1=stats_a["approval_rate"],
+        n2=stats_b["n"],
+        p2=stats_b["approval_rate"],
+    )
 
-        if metric == "approval_rate":
-            conv_a = int(grp_a["approval_rate"] * grp_a["n"])
-            conv_b = int(grp_b["approval_rate"] * grp_b["n"])
-            n_a = grp_a["n"]
-            n_b = grp_b["n"]
-        else:
-            n_approved_a = int(grp_a["approval_rate"] * grp_a["n"])
-            n_approved_b = int(grp_b["approval_rate"] * grp_b["n"])
-            conv_a = int(grp_a["default_rate"] * n_approved_a)
-            conv_b = int(grp_b["default_rate"] * n_approved_b)
-            n_a = n_approved_a
-            n_b = n_approved_b
+    # Test default rate
+    default_result = two_proportion_z_test(
+        n1=stats_a["n"],
+        p1=stats_a["default_rate"],
+        n2=stats_b["n"],
+        p2=stats_b["default_rate"],
+    )
 
-        z_result = two_proportion_ztest(
-            n_treatment=n_b,
-            n_control=n_a,
-            conversions_treatment=conv_b,
-            conversions_control=conv_a,
-            alpha=0.05,
-            alternative="two-sided",
-        )
+    # Compute power and MDE
+    approval_power = statistical_power(
+        stats_a["n"], stats_b["n"], stats_a["approval_rate"], stats_b["approval_rate"], alpha
+    )
+    default_power = statistical_power(
+        stats_a["n"], stats_b["n"], stats_a["default_rate"], stats_b["default_rate"], alpha
+    )
 
-        results[metric] = {
-            "group_A": {
-                "rate": round(float(grp_a[metric]), 4),
-                "n": n_a,
-                "conversions": conv_a,
-            },
-            "group_B": {
-                "rate": round(float(grp_b[metric]), 4),
-                "n": n_b,
-                "conversions": conv_b,
-            },
-            "treatment_effect": float(z_result.point_estimate),
-            "z_statistic": float(z_result.z_statistic),
-            "p_value": float(z_result.p_value),
-            "ci_lower": float(z_result.ci_lower),
-            "ci_upper": float(z_result.ci_upper),
-            "significant": bool(z_result.significant),
-        }
+    approval_mde = minimum_detectable_effect(
+        stats_a["n"], stats_b["n"], alpha, 0.80, stats_a["approval_rate"]
+    )
+    default_mde = minimum_detectable_effect(
+        stats_a["n"], stats_b["n"], alpha, 0.80, stats_a["default_rate"]
+    )
 
-    # Power analysis
-    p_approval_a = summary["A"]["approval_rate"]
-    p_approval_b = summary["B"]["approval_rate"]
-    mde_approval = abs(p_approval_b - p_approval_a)
-
-    power_approval = compute_power(n, float(p_approval_a), float(mde_approval), alpha=0.05)
-    mde_required  = minimum_detectable_effect(n, float(p_approval_a), alpha=0.05, power=0.80)
-
-    def safe_float(v):
-        return round(float(v), 4)
-
-    results["_meta"] = {
-        "n_total": n,
-        "power_approval_test": float(power_approval),
-        "mde_observed": safe_float(mde_approval),
-        "mde_required_for_80_power": safe_float(mde_required),
-        "group_a_summary": {k: safe_float(v) if isinstance(v, float) else v
-                            for k, v in summary["A"].items()},
-        "group_b_summary": {k: safe_float(v) if isinstance(v, float) else v
-                            for k, v in summary["B"].items()},
+    return {
+        "group_a": stats_a,
+        "group_b": stats_b,
+        "approval_rate_test": approval_result,
+        "default_rate_test": default_result,
+        "approval_power": approval_power,
+        "default_power": default_power,
+        "approval_mde": approval_mde,
+        "default_mde": default_mde,
+        "alpha": alpha,
     }
 
-    return make_json_safe(results)
+
+def interpret_results(results: Dict[str, Any]) -> Dict[str, str]:
+    """Generate human-readable interpretations of test results."""
+    interpretations = {}
+
+    # Approval rate interpretation
+    ar = results["approval_rate_test"]
+    if ar["p_value"] < results["alpha"]:
+        ar_significant = "SIGNIFICANT"
+        ar_direction = "higher" if ar["difference"] > 0 else "lower"
+        ar_conclusion = f"Group B has a {ar_direction} approval rate (statistically significant)."
+    else:
+        ar_significant = "NOT SIGNIFICANT"
+        ar_conclusion = "No significant difference in approval rates between groups."
+
+    interpretations["approval"] = (
+        f"[{ar_significant}] "
+        f"z={ar['z_statistic']:.3f}, p={ar['p_value']:.4f}, "
+        f"diff={ar['difference']:.4f} (95% CI: [{ar['ci_lower']:.4f}, {ar['ci_upper']:.4f}]). "
+        f"{ar_conclusion}"
+    )
+
+    # Default rate interpretation
+    dr = results["default_rate_test"]
+    if dr["p_value"] < results["alpha"]:
+        dr_significant = "SIGNIFICANT"
+        dr_direction = "lower" if dr["difference"] < 0 else "higher"
+        dr_conclusion = f"Group B has a {dr_direction} default rate (statistically significant)."
+    else:
+        dr_significant = "NOT SIGNIFICANT"
+        dr_conclusion = "No significant difference in default rates between groups."
+
+    interpretations["default"] = (
+        f"[{dr_significant}] "
+        f"z={dr['z_statistic']:.3f}, p={dr['p_value']:.4f}, "
+        f"diff={dr['difference']:.4f} (95% CI: [{dr['ci_lower']:.4f}, {dr['ci_upper']:.4f}]). "
+        f"{dr_conclusion}"
+    )
+
+    return interpretations
 
 
 if __name__ == "__main__":
     results = run_experiment()
-    print(json.dumps(results, indent=2))
+    for key, value in results.items():
+        if key not in ("group_a", "group_b"):
+            print(f"{key}: {value:.4f}" if isinstance(value, float) else f"{key}: {value}")

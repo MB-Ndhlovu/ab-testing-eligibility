@@ -1,58 +1,41 @@
 {
-  "approval_rate": {
-    "group_A": {
-      "rate": 0.6384,
-      "n": 2500,
-      "conversions": 1596
-    },
-    "group_B": {
-      "rate": 0.7296,
-      "n": 2500,
-      "conversions": 1824
-    },
-    "treatment_effect": 0.0912,
-    "z_statistic": 6.9355,
+  "group_a": {
+    "n": 2500,
+    "approval_rate": 0.6212,
+    "default_rate": 0.1128,
+    "avg_loan_size": 42548.2646,
+    "avg_processing_time": 7.0402
+  },
+  "group_b": {
+    "n": 2500,
+    "approval_rate": 0.6932,
+    "default_rate": 0.0884,
+    "avg_loan_size": 52302.8095,
+    "avg_processing_time": 6.6211
+  },
+  "approval_rate_test": {
+    "z_statistic": 5.3631,
     "p_value": 0.0,
-    "ci_lower": 0.0656,
-    "ci_upper": 0.1168,
+    "ci_lower": 0.045763,
+    "ci_upper": 0.098237,
+    "difference": 0.072,
+    "power": 0.9997,
+    "mde": 0.04,
     "significant": true
   },
-  "default_rate": {
-    "group_A": {
-      "rate": 0.084,
-      "n": 1596,
-      "conversions": 134
-    },
-    "group_B": {
-      "rate": 0.0707,
-      "n": 1824,
-      "conversions": 129
-    },
-    "treatment_effect": -0.0132,
-    "z_statistic": -1.4494,
-    "p_value": 0.147224,
-    "ci_lower": -0.0312,
-    "ci_upper": 0.0048,
-    "significant": false
+  "default_rate_test": {
+    "z_statistic": -2.8679,
+    "p_value": 0.004132,
+    "ci_lower": -0.041061,
+    "ci_upper": -0.007739,
+    "difference": -0.0244,
+    "power": 0.8183,
+    "mde": 0.03,
+    "significant": true
   },
-  "_meta": {
-    "n_total": 5000,
-    "power_approval_test": 1.0,
-    "mde_observed": 0.0912,
-    "mde_required_for_80_power": 0.0381,
-    "group_a_summary": {
-      "n": 2500,
-      "approval_rate": 0.6384,
-      "default_rate": 0.084,
-      "avg_loan_size": 630037.7682,
-      "avg_processing_time": 13.6
-    },
-    "group_b_summary": {
-      "n": 2500,
-      "approval_rate": 0.7296,
-      "default_rate": 0.0707,
-      "avg_loan_size": 326301.1639,
-      "avg_processing_time": 14.38
-    }
+  "alpha": 0.05,
+  "interpretations": {
+    "approval": "[SIGNIFICANT] z=5.363, p=0.0000, diff=0.0720 (95% CI: [0.0458, 0.0982]). Group B has a higher approval rate (statistically significant).",
+    "default": "[SIGNIFICANT] z=-2.868, p=0.0041, diff=-0.0244 (95% CI: [-0.0411, -0.0077]). Group B has a lower default rate (statistically significant)."
   }
 }
