@@ -1,60 +1,62 @@
-"""Run the A/B experiment simulation and compute significance."""
-from src.data_generator import group_a_summary, group_b_summary
-from src.statistical import two_proportion_ztest, confidence_interval, statistical_power
+from src.data_generator import generate_data, compute_summary
+from src.statistical import two_proportion_ztest, confidence_interval
 
-def run_simulation():
-    results = {}
+def run_experiment(seed=42):
+    records = generate_data(n=5000, seed=seed)
+    summary = compute_summary(records)
 
-    # Approval Rate
-    n_a = group_a_summary["n"]
-    n_b = group_b_summary["n"]
-    ar_a = group_a_summary["approval_rate"]
-    ar_b = group_b_summary["approval_rate"]
-    dr_a = group_a_summary["default_rate"]
-    dr_b = group_b_summary["default_rate"]
+    # Metrics for group A (control)
+    n_a = summary["A"]["n"]
+    approved_a = round(summary["A"]["approval_rate"] * n_a)
+    defaulted_a = round(summary["A"]["default_rate"] * approved_a)
 
-    z_ar, p_ar = two_proportion_ztest(n_a, ar_a, n_b, ar_b)
-    ci_ar = confidence_interval(n_a, ar_a, n_b, ar_b)
-    power_ar = statistical_power((n_a + n_b) // 2, ar_a, ar_b)
+    # Metrics for group B (treatment)
+    n_b = summary["B"]["n"]
+    approved_b = round(summary["B"]["approval_rate"] * n_b)
+    defaulted_b = round(summary["B"]["default_rate"] * approved_b)
 
-    z_dr, p_dr = two_proportion_ztest(n_a, dr_a, n_b, dr_b)
-    ci_dr = confidence_interval(n_a, dr_a, n_b, dr_b)
-    power_dr = statistical_power((n_a + n_b) // 2, dr_a, dr_b)
+    # Two-proportion z-test for approval_rate
+    approval_test = two_proportion_ztest(n_a, approved_a, n_b, approved_b)
+    approval_ci = confidence_interval(n_a, approved_a, n_b, approved_b)
 
-    results["approval_rate"] = {
-        "group_a": ar_a,
-        "group_b": ar_b,
-        "treatment_effect": ar_b - ar_a,
-        "z_statistic": z_ar,
-        "p_value": p_ar,
-        "ci_lower": ci_ar[0],
-        "ci_upper": ci_ar[1],
-        "significant": p_ar < 0.05,
-        "power": power_ar,
-    }
+    # Two-proportion z-test for default_rate (among approved)
+    default_test = two_proportion_ztest(n_a, defaulted_a, n_b, defaulted_b)
+    default_ci = confidence_interval(n_a, defaulted_a, n_b, defaulted_b)
 
-    results["default_rate"] = {
-        "group_a": dr_a,
-        "group_b": dr_b,
-        "treatment_effect": dr_b - dr_a,
-        "z_statistic": z_dr,
-        "p_value": p_dr,
-        "ci_lower": ci_dr[0],
-        "ci_upper": ci_dr[1],
-        "significant": p_dr < 0.05,
-        "power": power_dr,
-    }
-
-    results["avg_loan_size"] = {
-        "group_a": group_a_summary["avg_loan_size"],
-        "group_b": group_b_summary["avg_loan_size"],
-        "treatment_effect": group_b_summary["avg_loan_size"] - group_a_summary["avg_loan_size"],
-    }
-
-    results["avg_processing_time"] = {
-        "group_a": group_a_summary["avg_processing_time"],
-        "group_b": group_b_summary["avg_processing_time"],
-        "treatment_effect": group_b_summary["avg_processing_time"] - group_a_summary["avg_processing_time"],
+    results = {
+        "group_a": {
+            "n": n_a,
+            "approval_rate": round(summary["A"]["approval_rate"], 4),
+            "default_rate": round(summary["A"]["default_rate"], 4),
+            "avg_loan_size": round(summary["A"]["avg_loan_size"], 2),
+            "avg_processing_time": round(summary["A"]["avg_processing_time"], 2),
+        },
+        "group_b": {
+            "n": n_b,
+            "approval_rate": round(summary["B"]["approval_rate"], 4),
+            "default_rate": round(summary["B"]["default_rate"], 4),
+            "avg_loan_size": round(summary["B"]["avg_loan_size"], 2),
+            "avg_processing_time": round(summary["B"]["avg_processing_time"], 2),
+        },
+        "approval_rate_test": {
+            "z_statistic": approval_test["z_statistic"],
+            "p_value": approval_test["p_value"],
+            "ci_lower": approval_ci["ci_lower"],
+            "ci_upper": approval_ci["ci_upper"],
+            "significant": approval_test["p_value"] < 0.05,
+        },
+        "default_rate_test": {
+            "z_statistic": default_test["z_statistic"],
+            "p_value": default_test["p_value"],
+            "ci_lower": default_ci["ci_lower"],
+            "ci_upper": default_ci["ci_upper"],
+            "significant": default_test["p_value"] < 0.05,
+        }
     }
 
     return results
+
+if __name__ == "__main__":
+    results = run_experiment()
+    print("Approval rate z-test:", results["approval_rate_test"])
+    print("Default rate z-test:", results["default_rate_test"])

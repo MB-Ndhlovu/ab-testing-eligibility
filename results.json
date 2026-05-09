@@ -1,34 +1,30 @@
 {
-  "approval_rate": {
-    "group_a": 0.6202,
-    "group_b": 0.7048,
-    "treatment_effect": 0.08460000000000001,
-    "z_statistic": -8.945621886900666,
+  "group_a": {
+    "n": 2500,
+    "approval_rate": 0.6188,
+    "default_rate": 0.1041,
+    "avg_loan_size": 64.95,
+    "avg_processing_time": 36.74
+  },
+  "group_b": {
+    "n": 2500,
+    "approval_rate": 0.7176,
+    "default_rate": 0.0803,
+    "avg_loan_size": 74.89,
+    "avg_processing_time": 35.24
+  },
+  "approval_rate_test": {
+    "z_statistic": 7.4186,
     "p_value": 0.0,
-    "ci_lower": -0.10306134013918056,
-    "ci_upper": -0.06613865986081946,
-    "significant": true,
-    "power": 0.9999999999985824
+    "ci_lower": 0.0728,
+    "ci_upper": 0.1248,
+    "significant": true
   },
-  "default_rate": {
-    "group_a": 0.10899709771041599,
-    "group_b": 0.08967082860385925,
-    "treatment_effect": -0.019326269106556743,
-    "z_statistic": 3.2306302274175698,
-    "p_value": 0.0012351762180164982,
-    "ci_lower": 0.007607497044973873,
-    "ci_upper": 0.031045041168139612,
-    "significant": true,
-    "power": 0.8980762951438277
-  },
-  "avg_loan_size": {
-    "group_a": 18778.221825314733,
-    "group_b": 19209.167799646995,
-    "treatment_effect": 430.94597433226227
-  },
-  "avg_processing_time": {
-    "group_a": 6.4188440951935375,
-    "group_b": 5.853760608615473,
-    "treatment_effect": -0.5650834865780645
+  "default_rate_test": {
+    "z_statistic": -1.0045,
+    "p_value": 0.31512,
+    "ci_lower": -0.0201,
+    "ci_upper": 0.0065,
+    "significant": false
   }
 }

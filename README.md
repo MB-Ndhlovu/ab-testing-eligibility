@@ -2,33 +2,40 @@
 
 ## Business Problem
 
-A lender wants to evaluate whether a new credit eligibility model improves key lending metrics compared to the current model. The experiment assigns loan applicants into two groups:
+A consumer lender wants to evaluate whether a new credit eligibility model ("Model B") performs better than the current production model ("Model A"). The primary concern is twofold: **approval rate** (do we approve more deserving applicants?) and **default rate** (do we avoid bad loans?).
 
-- **Group A (Control)**: Current eligibility model
-- **Group B (Treatment)**: New eligibility model
+The new model is expected to:
+- Increase approval rates (more good applicants pass through)
+- Decrease default rates (better risk scoring)
 
-The goal is to determine if Group B outperforms Group A on approval rate and default rate.
-
-## Key Metrics
-
-| Metric | Group A (Control) | Group B (Treatment) | Desired Direction |
-|---|---|---|---|
-| Approval Rate | ~62% | ~71% | Higher is better |
-| Default Rate | ~11% | ~9% | Lower is better |
-| Avg Loan Size | Simulated | Simulated | — |
-| Processing Time | Simulated | Simulated | — |
+We need statistical evidence before deploying to production.
 
 ## Methodology
 
-1. **Data Generation**: Simulate 5,000 loan applications per group with realistic noise
-2. **Statistical Testing**: Two-proportion z-test for each binary metric (approval, default)
-3. **Confidence Intervals**: 95% CI for the difference between proportions
-4. **Decision Rule**: Reject null hypothesis if p-value < 0.05
+1. **Experiment Design**: 5,000 synthetic loan applications are simulated — 2,500 assigned to Group A (control) and 2,500 to Group B (treatment). Each group gets eligibility decisions and outcomes from their respective models.
+
+2. **Synthetic Data Generation**:
+   - Group A (control): approval_rate ~62%, default_rate ~11%
+   - Group B (treatment): approval_rate ~71%, default_rate ~9%
+   - Realistic noise added (binomial sampling, covariate variation) so results aren't perfectly clean
+
+3. **Statistical Testing**: Two-proportion z-test for each metric.
+   - H₀: p_B - p_A = 0 (no difference)
+   - H₁: p_B ≠ p_A (two-tailed)
+   - Significance level: α = 0.05
+
+4. **Metrics Reported**:
+   - Z-statistic
+   - P-value
+   - 95% confidence interval for the difference
+   - Statistical conclusion (significant / not significant)
 
 ## Files
 
-- `src/data_generator.py` — Synthetic data generation
-- `src/statistical.py` — Two-proportion z-test, CI, power analysis
-- `src/simulate.py` — Experiment runner
-- `src/report.py` — Formatted output
-- `run_pipeline.py` — End-to-end execution
+| File | Purpose |
+|------|---------|
+| `src/data_generator.py` | Generate 5,000 synthetic loan records with group labels and outcomes |
+| `src/statistical.py` | Two-proportion z-test, confidence intervals, power, MDE |
+| `src/simulate.py` | Run the experiment and compute treatment effects |
+| `src/report.py` | Human-readable summary of results |
+| `run_pipeline.py` | Execute full pipeline, print results, save JSON |
