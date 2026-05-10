@@ -1,107 +1,73 @@
-"""Generate synthetic credit eligibility data for A/B testing."""
 import numpy as np
-import pandas as pd
 
 np.random.seed(42)
 
+N = 5000
+n_per_group = N // 2
 
-def generate_data(n=5000):
-    """Generate synthetic loan applicant data for two groups.
+APPROVAL_A = 0.62
+APPROVAL_B = 0.71
+DEFAULT_A = 0.11
+DEFAULT_B = 0.09
 
-    Args:
-        n: Number of applicants per group (default 5000)
+def generate_data():
+    approved_a = np.random.random(n_per_group) < APPROVAL_A
+    approved_b = np.random.random(n_per_group) < APPROVAL_B
 
-    Returns:
-        DataFrame with columns: group, approved, defaulted, loan_size, processing_time
-    """
-    # Group A: Control (current model)
-    # Approval rate ~0.62, default rate ~0.11
-    group_a_size = n
-    group_a_approved = np.random.binomial(1, 0.62, group_a_size)
-    # Default rate is conditional on approval
-    group_a_defaulted = np.where(
-        group_a_approved == 1,
-        np.random.binomial(1, 0.11, group_a_size),
+    defaulted_a = (np.random.random(n_per_group) < DEFAULT_A) & approved_a
+    defaulted_b = (np.random.random(n_per_group) < DEFAULT_B) & approved_b
+
+    loan_size_a = np.where(
+        approved_a,
+        np.clip(np.random.lognormal(10.5, 0.6, n_per_group), 1000, 500000),
         0
     )
-    group_a_loan_size = np.where(
-        group_a_approved == 1,
-        np.random.lognormal(np.log(15000), 0.4, group_a_size),
+    loan_size_b = np.where(
+        approved_b,
+        np.clip(np.random.lognormal(10.7, 0.55, n_per_group), 1000, 500000),
         0
     )
-    group_a_processing_time = np.where(
-        group_a_approved == 1,
-        np.random.gamma(4, 11, group_a_size) + np.random.uniform(5, 15, group_a_size),
-        np.random.gamma(3, 8, group_a_size) + np.random.uniform(2, 8, group_a_size)
+
+    processing_time_a = np.clip(
+        np.random.normal(4.2, 1.8, n_per_group) + np.random.normal(0, 0.4, n_per_group),
+        0.5, 24
+    )
+    processing_time_b = np.clip(
+        np.random.normal(3.8, 1.6, n_per_group) + np.random.normal(0, 0.4, n_per_group),
+        0.5, 24
     )
 
-    # Group B: Treatment (new model)
-    # Approval rate ~0.71, default rate ~0.09
-    group_b_size = n
-    group_b_approved = np.random.binomial(1, 0.71, group_b_size)
-    group_b_defaulted = np.where(
-        group_b_approved == 1,
-        np.random.binomial(1, 0.09, group_b_size),
-        0
-    )
-    group_b_loan_size = np.where(
-        group_b_approved == 1,
-        np.random.lognormal(np.log(16500), 0.4, group_b_size),
-        0
-    )
-    group_b_processing_time = np.where(
-        group_b_approved == 1,
-        np.random.gamma(3.5, 10, group_b_size) + np.random.uniform(3, 12, group_b_size),
-        np.random.gamma(3, 8, group_b_size) + np.random.uniform(2, 8, group_b_size)
-    )
+    return {
+        "group_a": {
+            "approved": approved_a,
+            "defaulted": defaulted_a,
+            "loan_size": loan_size_a,
+            "processing_time": processing_time_a,
+            "approval_rate": approved_a.mean(),
+            "default_rate": defaulted_a.sum() / n_per_group,
+            "avg_loan_size": loan_size_a[loan_size_a > 0].mean() if loan_size_a[loan_size_a > 0].size > 0 else 0,
+            "avg_processing_time": processing_time_a[approved_a].mean() if approved_a.sum() > 0 else 0,
+        },
+        "group_b": {
+            "approved": approved_b,
+            "defaulted": defaulted_b,
+            "loan_size": loan_size_b,
+            "processing_time": processing_time_b,
+            "approval_rate": approved_b.mean(),
+            "default_rate": defaulted_b.sum() / n_per_group,
+            "avg_loan_size": loan_size_b[loan_size_b > 0].mean() if loan_size_b[loan_size_b > 0].size > 0 else 0,
+            "avg_processing_time": processing_time_b[approved_b].mean() if approved_b.sum() > 0 else 0,
+        },
+    }
 
-    # Combine into DataFrame
-    df_a = pd.DataFrame({
-        'applicant_id': range(1, n + 1),
-        'group': 'A',
-        'approved': group_a_approved,
-        'defaulted': group_a_defaulted,
-        'loan_size': np.round(group_a_loan_size, 2),
-        'processing_time': np.round(group_a_processing_time, 2)
-    })
-
-    df_b = pd.DataFrame({
-        'applicant_id': range(n + 1, 2 * n + 1),
-        'group': 'B',
-        'approved': group_b_approved,
-        'defaulted': group_b_defaulted,
-        'loan_size': np.round(group_b_loan_size, 2),
-        'processing_time': np.round(group_b_processing_time, 2)
-    })
-
-    df = pd.concat([df_a, df_b], ignore_index=True)
-    return df
-
-
-def compute_group_stats(df):
-    """Compute summary statistics for each group."""
-    stats = {}
-    for group in ['A', 'B']:
-        subset = df[df['group'] == group]
-        n = len(subset)
-        n_approved = subset['approved'].sum()
-        n_defaulted = subset['defaulted'].sum()
-        approved_loans = subset[subset['approved'] == 1]
-
-        stats[group] = {
-            'n': n,
-            'approval_rate': n_approved / n,
-            'default_rate': n_defaulted / n_approved if n_approved > 0 else 0,
-            'avg_loan_size': approved_loans['loan_size'].mean() if len(approved_loans) > 0 else 0,
-            'avg_processing_time': subset['processing_time'].mean()
-        }
-    return stats
-
-
-if __name__ == '__main__':
-    df = generate_data()
-    print(f"Generated {len(df)} rows")
-    print(df.head())
-    print("\nGroup statistics:")
-    for group, s in compute_group_stats(df).items():
-        print(f"Group {group}: {s}")
+if __name__ == "__main__":
+    data = generate_data()
+    print("Group A — Approval Rate:", round(data["group_a"]["approval_rate"], 4))
+    print("Group A — Default Rate:", round(data["group_a"]["default_rate"], 4))
+    print("Group A — Avg Loan Size:", round(data["group_a"]["avg_loan_size"], 2))
+    print("Group A — Avg Processing Time:", round(data["group_a"]["avg_processing_time"], 2))
+    print()
+    print("Group B — Approval Rate:", round(data["group_b"]["approval_rate"], 4))
+    print("Group B — Default Rate:", round(data["group_b"]["default_rate"], 4))
+    print("Group B — Avg Loan Size:", round(data["group_b"]["avg_loan_size"], 2))
+    print("Group B — Avg Processing Time:", round(data["group_b"]["avg_processing_time"], 2))

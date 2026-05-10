@@ -1,44 +1,42 @@
 {
-  "sample_size": 5000,
+  "n_total": 5000,
+  "n_group_a": 2500,
+  "n_group_b": 2500,
   "alpha": 0.05,
-  "power": 1.0,
-  "mde": 0.027194,
   "group_a": {
-    "n": 5000.0,
-    "approval_rate": 0.6202,
-    "default_rate": 0.11028700419219607,
-    "avg_loan_size": 16388.710551435022,
-    "avg_processing_time": 44.773920000000004
+    "approval_rate": 0.6188,
+    "default_rate": 0.0672,
+    "avg_loan_size": 44538.27,
+    "avg_processing_time": 4.3
   },
   "group_b": {
-    "n": 5000.0,
-    "approval_rate": 0.7128,
-    "default_rate": 0.0920314253647587,
-    "avg_loan_size": 17720.566313131316,
-    "avg_processing_time": 38.629588
+    "approval_rate": 0.7176,
+    "default_rate": 0.0628,
+    "avg_loan_size": 51606.86,
+    "avg_processing_time": 3.82
   },
-  "approval_rate_test": {
-    "z_statistic": -9.8205,
-    "p_value": 0.0,
-    "ci_95_lower": -0.110992,
-    "ci_95_upper": -0.074208,
-    "significant": true,
-    "p1": 0.6202,
-    "p2": 0.7128,
-    "difference": -0.0926
-  },
-  "default_rate_test": {
-    "z_statistic": 2.5119,
-    "p_value": 0.01201,
-    "ci_95_lower": 0.003997,
-    "ci_95_upper": 0.033075,
-    "significant": true,
-    "p1": 0.110287,
-    "p2": 0.091751,
-    "difference": 0.018536
-  },
-  "treatment_effect": {
-    "approval_rate": 0.0926,
-    "default_rate": -0.018256
+  "tests": {
+    "approval_rate": {
+      "metric": "approval_rate",
+      "group_a_rate": 0.6188,
+      "group_b_rate": 0.7176,
+      "diff": 0.0988,
+      "ci_lower": 0.0728,
+      "ci_upper": 0.1248,
+      "z_statistic": 7.4186,
+      "p_value": 0.0,
+      "significant": true
+    },
+    "default_rate": {
+      "metric": "default_rate",
+      "group_a_rate": 0.0672,
+      "group_b_rate": 0.0628,
+      "diff": -0.0044,
+      "ci_lower": -0.0181,
+      "ci_upper": 0.0093,
+      "z_statistic": -0.631,
+      "p_value": 0.528025,
+      "significant": false
+    }
   }
 }

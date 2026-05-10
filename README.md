@@ -2,69 +2,32 @@
 
 ## Business Problem
 
-A lender wants to evaluate whether a new credit eligibility model (Group B) outperforms their current model (Group A). The framework allows them to:
+A lender wants to test a new credit eligibility model against their current model. The goal is to determine whether the new model improves key business metrics — specifically approval rate and default rate — without introducing unacceptable risk.
 
-- Test whether the new model increases approval rates without significantly affecting default rates
-- Make data-driven decisions before full deployment
-- Quantify uncertainty through confidence intervals and statistical significance
+- **Group A (Control)**: Current eligibility model
+- **Group B (Treatment)**: New eligibility model
+
+The new model is expected to be slightly better on both metrics: higher approval rate (more loans originated) and lower default rate (less credit risk).
 
 ## Methodology
 
-### Experiment Design
+1. **Data Generation**: Simulate 5,000 loan applications split evenly between control (A) and treatment (B) groups
+2. **Outcome Simulation**: Each applicant receives a simulated outcome — approved/denied, default/no default, loan size, processing time
+3. **Statistical Testing**: Two-proportion z-test for each metric, comparing groups A and B
+4. **Reporting**: Confidence intervals, p-values, and statistical significance at α = 0.05
 
-- **Control Group (A)**: Current eligibility model
-- **Treatment Group (B)**: New eligibility model
-- **Sample Size**: 5,000 applicants per group (10,000 total)
-- **Primary Metrics**: Approval rate, Default rate
-- **Secondary Metrics**: Average loan size, Processing time
-
-### Statistical Approach
-
-We use a **two-proportion z-test** to compare proportions between groups. This test is appropriate when:
-
-1. Samples are independent
-2. Sample sizes are large (n > 30)
-3. Data follows a binomial distribution
-
-### Key Statistics Reported
-
-| Metric | Description |
-|--------|-------------|
-| Z-statistic | Standardized difference between proportions |
-| P-value | Probability of observing this result by chance |
-| 95% CI | Range likely to contain the true difference |
-| Power | Probability of detecting a true effect |
-
-### Decision Rule
-
-- **Significance level (α)**: 0.05
-- If p-value < 0.05: Reject null hypothesis → statistically significant difference
-- If p-value ≥ 0.05: Fail to reject null hypothesis → no statistically significant difference
-
-## Expected Results
-
-Based on synthetic data generation:
+## Key Metrics
 
 | Metric | Group A (Control) | Group B (Treatment) |
 |--------|-------------------|---------------------|
-| Approval Rate | ~0.62 | ~0.71 |
-| Default Rate | ~0.11 | ~0.09 |
-| Avg Loan Size | ~R15,000 | ~R16,500 |
-| Processing Time | ~45 min | ~38 min |
+| Approval Rate | ~62% | ~71% |
+| Default Rate | ~11% | ~9% |
 
-## Installation
+## Files
 
-```bash
-pip install -r requirements.txt
-```
-
-## Usage
-
-```bash
-python run_pipeline.py
-```
-
-## Output
-
-- Console: Summary report with statistical findings
-- JSON: Full results saved to `results.json`
+- `src/data_generator.py` — Synthetic data generation (5,000 rows, A/B split)
+- `src/statistical.py` — Two-proportion z-test, CI, power analysis
+- `src/simulate.py` — Experiment runner and treatment effect computation
+- `src/report.py` — Formatted summary report
+- `run_pipeline.py` — End-to-end execution script
+- `requirements.txt` — Dependencies
