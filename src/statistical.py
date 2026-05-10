@@ -1,36 +1,61 @@
+"""Statistical analysis for two-proportion z-tests."""
+
 import numpy as np
 from scipy import stats
 
-def two_proportion_ztest(n1, p1, n2, p2):
-    """Two-proportion z-test for comparing two proportions."""
-    p_pooled = (n1 * p1 + n2 * p2) / (n1 + n2)
-    se = np.sqrt(p_pooled * (1 - p_pooled) * (1/n1 + 1/n2))
-    z = (p2 - p1) / se
+
+def two_proportion_ztest(n_success, n_total, p_null=0.0):
+    """Two-proportion z-test.
+    
+    Args:
+        n_success: array-like of successes in each group
+        n_total: array-like of totals in each group
+        p_null: null hypothesis proportion (typically 0)
+    
+    Returns:
+        z_statistic, p_value
+    """
+    n_success = np.asarray(n_success)
+    n_total = np.asarray(n_total)
+    
+    p1, p2 = n_success[0] / n_total[0], n_success[1] / n_total[1]
+    p_pool = n_success.sum() / n_total.sum()
+    se = np.sqrt(p_pool * (1 - p_pool) * (1/n_total[0] + 1/n_total[1]))
+    
+    if se == 0:
+        return np.inf, 0.0
+    
+    z = (p1 - p2 - p_null) / se
     p_value = 2 * (1 - stats.norm.cdf(abs(z)))
+    
     return z, p_value
 
-def confidence_interval(n1, p1, n2, p2, confidence=0.95):
-    """95% CI for the difference between two proportions."""
-    z = stats.norm.ppf(1 - (1 - confidence) / 2)
-    diff = p2 - p1
-    se = np.sqrt((p1 * (1 - p1) / n1) + (p2 * (1 - p2) / n2))
-    lower = diff - z * se
-    upper = diff + z * se
-    return lower, upper
 
-def statistical_power(n, p1, p2, alpha=0.05):
-    """Calculate statistical power for a two-proportion z-test."""
-    z_alpha = stats.norm.ppf(1 - alpha / 2)
-    p_pooled = (p1 + p2) / 2
-    se = np.sqrt(p_pooled * (1 - p_pooled) * (2 / n))
-    z_effect = abs(p2 - p1) / se
-    power = stats.norm.cdf(z_effect - z_alpha) + stats.norm.cdf(-z_effect - z_alpha)
-    return power
+def confidence_interval(n_success, n_total, alpha=0.05):
+    """95% CI for difference in proportions."""
+    n_success = np.asarray(n_success)
+    n_total = np.asarray(n_total)
+    
+    p1, p2 = n_success[0] / n_total[0], n_success[1] / n_total[1]
+    diff = p1 - p2
+    se = np.sqrt(p1*(1-p1)/n_total[0] + p2*(1-p2)/n_total[1])
+    z_crit = stats.norm.ppf(1 - alpha/2)
+    
+    return diff - z_crit*se, diff + z_crit*se
 
-def minimum_detectable_effect(n, alpha=0.05, power=0.80):
-    """Find the minimum detectable effect size for given n, alpha, power."""
-    z_alpha = stats.norm.ppf(1 - alpha / 2)
-    z_beta = stats.norm.ppf(power)
-    p = 0.5
-    mde = (z_alpha + z_beta) * np.sqrt(2 * p * (1 - p) / n)
-    return mde
+
+def statistical_power(n_total, p1, p2, alpha=0.05):
+    """Calculate statistical power for two-proportion test."""
+    p_pool = (p1 + p2) / 2
+    se = np.sqrt(p_pool * (1 - p_pool) * (2 / n_total))
+    diff = abs(p1 - p2)
+    z_crit = stats.norm.ppf(1 - alpha/2)
+    z_power = (diff - z_crit * se) / se
+    return stats.norm.cdf(z_power)
+
+
+def minimum_detectable_effect(n_total, alpha=0.05, power=0.80):
+    """Minimum detectable effect (proportion difference) for given power."""
+    z_crit = stats.norm.ppf(1 - alpha/2)
+    z_power = stats.norm.ppf(power)
+    return (z_crit + z_power) / np.sqrt(2 / n_total)
