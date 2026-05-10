@@ -1,80 +1,102 @@
-import json
+from typing import Dict, Any
 
-def generate_report(results):
+
+def format_pct(value: float) -> str:
+    """Format a proportion as a percentage string."""
+    return f"{value * 100:.2f}%"
+
+
+def generate_report(results: Dict[str, Any]) -> str:
     """
-    Generate a readable summary report from experiment results.
+    Generate a human-readable summary report from experiment results.
+
+    Args:
+        results: Dictionary returned by run_experiment()
+
+    Returns:
+        Formatted report as a multi-line string
     """
-    lines = []
-    lines.append("=" * 60)
-    lines.append("       A/B TESTING FRAMEWORK - CREDIT ELIGIBILITY")
-    lines.append("=" * 60)
-    
-    lines.append("\n📊 EXPERIMENT SUMMARY")
-    lines.append("-" * 40)
-    s = results['summary']
-    lines.append(f"  Total applications: {s['n_total']}")
-    lines.append(f"  Group A (Control):  {s['group_a_n']} applicants")
-    lines.append(f"  Group B (Treatment): {s['group_b_n']} applicants")
-    
-    lines.append("\n📈 APPROVAL RATE ANALYSIS")
-    lines.append("-" * 40)
-    ar = results['approval_rate']
-    lines.append(f"  Group A (Control):  {ar['group_a']['rate']:.4f} ({ar['group_a']['successes']}/{ar['group_a']['n']})")
-    lines.append(f"  Group B (Treatment): {ar['group_b']['rate']:.4f} ({ar['group_b']['successes']}/{ar['group_b']['n']})")
-    lines.append(f"  Treatment Effect:    {ar['treatment_effect']:+.4f}")
-    lines.append(f"  95% CI for Diff:     [{ar['ci_95'][0]:.4f}, {ar['ci_95'][1]:.4f}]")
-    lines.append(f"  z-statistic:         {ar['z_statistic']:.4f}")
-    lines.append(f"  p-value:             {ar['p_value']:.6f}")
-    lines.append(f"  Statistical Power:   {ar['actual_power']:.4f}")
-    lines.append(f"  MDE (80% power):     {ar['power_mde_80']:.4f}")
-    lines.append(f"  MDE (90% power):     {ar['power_mde_90']:.4f}")
-    sig_word = "✅ SIGNIFICANT" if ar['significant'] else "❌ NOT SIGNIFICANT"
-    lines.append(f"  Conclusion (α=0.05): {sig_word}")
-    
-    lines.append("\n⚠️  DEFAULT RATE ANALYSIS")
-    lines.append("-" * 40)
-    dr = results['default_rate']
-    lines.append(f"  Group A (Control):  {dr['group_a']['rate']:.4f} ({dr['group_a']['successes']}/{dr['group_a']['n']})")
-    lines.append(f"  Group B (Treatment): {dr['group_b']['rate']:.4f} ({dr['group_b']['successes']}/{dr['group_b']['n']})")
-    lines.append(f"  Treatment Effect:    {dr['treatment_effect']:+.4f}")
-    lines.append(f"  95% CI for Diff:     [{dr['ci_95'][0]:.4f}, {dr['ci_95'][1]:.4f}]")
-    lines.append(f"  z-statistic:         {dr['z_statistic']:.4f}")
-    lines.append(f"  p-value:             {dr['p_value']:.6f}")
-    lines.append(f"  Statistical Power:   {dr['actual_power']:.4f}")
-    lines.append(f"  MDE (80% power):     {dr['power_mde_80']:.4f}")
-    lines.append(f"  MDE (90% power):     {dr['power_mde_90']:.4f}")
-    sig_word = "✅ SIGNIFICANT" if dr['significant'] else "❌ NOT SIGNIFICANT"
-    lines.append(f"  Conclusion (α=0.05): {sig_word}")
-    
-    lines.append("\n💰 AVERAGE LOAN SIZE")
-    lines.append("-" * 40)
-    lines.append(f"  Group A: R{s['group_a_avg_loan']:,.2f}")
-    lines.append(f"  Group B: R{s['group_b_avg_loan']:,.2f}")
-    
-    lines.append("\n⏱️  PROCESSING TIME (seconds)")
-    lines.append("-" * 40)
-    lines.append(f"  Group A: {s['group_a_avg_proc_time']:.1f}s")
-    lines.append(f"  Group B: {s['group_b_avg_proc_time']:.1f}s")
-    
-    lines.append("\n" + "=" * 60)
-    ar_sig = results['approval_rate']['significant']
-    dr_sig = results['default_rate']['significant']
-    
-    if ar_sig and dr_sig:
-        verdict = "🎯 RECOMMENDATION: Deploy Model B - significant improvement in BOTH approval rate AND default rate."
-    elif ar_sig:
-        verdict = "⚠️  RECOMMENDATION: Deploy Model B - significant approval improvement, but default rate not significantly improved."
-    elif dr_sig:
-        verdict = "⚠️  RECOMMENDATION: Deploy Model B - significant default improvement, but approval rate not significantly improved."
+    meta = results['metadata']
+    approval = results['approval_rate']
+    default = results['default_rate']
+    group_stats = results['group_stats']
+
+    verdict_approval = "SIGNIFICANT" if approval['significant'] else "NOT SIGNIFICANT"
+    verdict_default = "SIGNIFICANT" if default['significant'] else "NOT SIGNIFICANT"
+
+    lines = [
+        "=" * 60,
+        "A/B TESTING FRAMEWORK — CREDIT ELIGIBILITY",
+        "=" * 60,
+        "",
+        "EXPERIMENT SUMMARY",
+        "-" * 40,
+        f"Sample Size:    {meta['n_total']} total ({meta['n_control']} control / {meta['n_treatment']} treatment)",
+        f"Random Seed:     {meta['seed']}",
+        "",
+        "GROUP-LEVEL METRICS",
+        "-" * 40,
+        f"{'':20} {'Group A (Control)':>20} {'Group B (Treatment)':>20}",
+        f"{'Approval Rate':20} {format_pct(group_stats['A']['approval_rate']):>20} {format_pct(group_stats['B']['approval_rate']):>20}",
+        f"{'Default Rate':20} {format_pct(group_stats['A']['default_rate']):>20} {format_pct(group_stats['B']['default_rate']):>20}",
+        f"{'Avg Loan Size':20} {'R${:,.0f}'.format(group_stats['A']['avg_loan_size']):>20} {'R${:,.0f}'.format(group_stats['B']['avg_loan_size']):>20}",
+        f"{'Processing Time':20} {group_stats['A']['processing_time_mean']:.1f} min{'':10} {group_stats['B']['processing_time_mean']:.1f} min{'':10}",
+        "",
+        "STATISTICAL RESULTS",
+        "-" * 40,
+        "",
+        "1. APPROVAL RATE",
+        f"   Observed difference:  {approval['treatment_effect']:+.4f} ({format_pct(approval['treatment_effect'])})",
+        f"   z-statistic:         {approval['z_statistic']:.4f}",
+        f"   p-value:             {approval['p_value']:.4f}",
+        f"   95% CI:              [{approval['ci_95'][0]:.4f}, {approval['ci_95'][1]:.4f}]",
+        f"   Statistical power:   {approval['power']:.4f}",
+        f"   Min detectable eff:  {approval['mde']:.4f}",
+        f"   Result (alpha=0.05): {verdict_approval}",
+        "",
+        "2. DEFAULT RATE",
+        f"   Observed difference:  {default['treatment_effect']:+.4f} ({format_pct(default['treatment_effect'])})",
+        f"   z-statistic:         {default['z_statistic']:.4f}",
+        f"   p-value:             {default['p_value']:.4f}",
+        f"   95% CI:              [{default['ci_95'][0]:.4f}, {default['ci_95'][1]:.4f}]",
+        f"   Statistical power:   {default['power']:.4f}",
+        f"   Min detectable eff:  {default['mde']:.4f}",
+        f"   Result (alpha=0.05): {verdict_default}",
+        "",
+        "=" * 60,
+        "CONCLUSION",
+        "-" * 40,
+    ]
+
+    if approval['significant'] and default['significant']:
+        if (approval['treatment_effect'] > 0 and default['treatment_effect'] < 0):
+            lines.append("The new model (Group B) SIGNIFICANTLY outperforms the current model")
+            lines.append("on BOTH metrics — higher approval rate AND lower default rate.")
+            lines.append("Recommendation: DEPLOY the new model.")
+        else:
+            lines.append("Mixed results — see individual metric conclusions above.")
+    elif approval['significant']:
+        lines.append("Approval rate improved significantly. Default rate not significant.")
+        lines.append("Recommendation: Review default rate impact before deploying.")
+    elif default['significant']:
+        lines.append("Default rate improved significantly. Approval rate not significant.")
+        lines.append("Recommendation: Review approval rate impact before deploying.")
     else:
-        verdict = "❌ RECOMMENDATION: Keep Model A - no statistically significant improvement detected in either metric."
-    
-    lines.append(f"\n{verdict}")
+        lines.append("Neither metric showed a statistically significant improvement.")
+        lines.append("Recommendation: Do NOT deploy the new model at this time.")
+
+    lines.append("")
     lines.append("=" * 60)
-    
+
     return "\n".join(lines)
 
-if __name__ == '__main__':
-    from simulate import run_experiment
-    results = run_experiment()
+
+def print_report(results: Dict[str, Any]) -> None:
+    """Print the report to stdout."""
     print(generate_report(results))
+
+
+if __name__ == '__main__':
+    from src.simulate import run_experiment
+    results = run_experiment()
+    print_report(results)

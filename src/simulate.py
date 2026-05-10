@@ -1,75 +1,124 @@
-from src.data_generator import generate_credit_data, compute_group_stats
-from src.statistical import two_proportion_ztest, confidence_interval_diff, statistical_power, minimum_detectable_effect
+import pandas as pd
+from src.data_generator import generate_loan_data, compute_group_stats
+from src.statistical import two_proportion_z_test, compute_power, minimum_detectable_effect
+from dataclasses import dataclass, asdict
+from typing import Dict, Any
 
-def run_experiment(seed=42):
+
+@dataclass
+class ExperimentResult:
+    """Results from the A/B experiment simulation."""
+    metric_name: str
+    control_rate: float
+    treatment_rate: float
+    treatment_effect: float
+    z_statistic: float
+    p_value: float
+    ci_lower: float
+    ci_upper: float
+    significant: bool
+    power: float
+    mde: float
+
+
+def run_experiment(
+    n: int = 5000,
+    seed: int = 42
+) -> Dict[str, Any]:
     """
     Run the full A/B experiment simulation.
+
+    Args:
+        n: Total sample size
+        seed: Random seed
+
+    Returns:
+        Dictionary containing results and metadata
     """
-    df = generate_credit_data(n=5000, seed=seed)
+    # Generate data
+    df = generate_loan_data(n=n, seed=seed)
     stats = compute_group_stats(df)
-    
-    results = {}
-    
-    for metric in ['approval_rate', 'default_rate']:
-        if metric == 'approval_rate':
-            n_success_a = stats['A']['approval_count']
-            n_total_a = stats['A']['n']
-            n_success_b = stats['B']['approval_count']
-            n_total_b = stats['B']['n']
-            p_a = stats['A']['approval_rate']
-            p_b = stats['B']['approval_rate']
-            alternative = 'greater'  # B should be better
-        else:
-            # For default rate, approved only
-            n_success_a = stats['A']['default_count']
-            n_total_a = stats['A']['approval_count']
-            n_success_b = stats['B']['default_count']
-            n_total_b = stats['B']['approval_count']
-            p_a = stats['A']['default_rate']
-            p_b = stats['B']['default_rate']
-            alternative = 'less'  # B should have lower default
-        
-        z, p = two_proportion_ztest(n_success_a, n_total_a, n_success_b, n_total_b, alternative='two-sided')
-        ci = confidence_interval_diff(p_a, p_b, n_total_a, n_total_b, confidence=0.95)
-        
-        mde_80 = minimum_detectable_effect(n_total_a, n_total_b, p_a, power=0.8, alpha=0.05)
-        mde_90 = minimum_detectable_effect(n_total_a, n_total_b, p_a, power=0.9, alpha=0.05)
-        power_actual = statistical_power(n_total_a, n_total_b, p_a, abs(p_b - p_a), alpha=0.05)
-        
-        alpha = 0.05
-        significant = p < alpha
-        effect_direction = "positive (B > A)" if p_b > p_a else "negative (B < A)"
-        
-        results[metric] = {
-            'group_a': {'rate': p_a, 'n': n_total_a, 'successes': int(n_success_a)},
-            'group_b': {'rate': p_b, 'n': n_total_b, 'successes': int(n_success_b)},
-            'treatment_effect': p_b - p_a,
-            'z_statistic': z,
-            'p_value': p,
-            'ci_95': ci,
-            'significant': significant,
-            'alpha': alpha,
-            'power_mde_80': mde_80,
-            'power_mde_90': mde_90,
-            'actual_power': power_actual,
-            'effect_direction': effect_direction,
+
+    # Extract counts
+    n_a = stats['A']['n']
+    n_b = stats['B']['n']
+
+    # Approval rate test
+    approval_result = two_proportion_z_test(
+        control_successes=int(stats['A']['approval_rate'] * n_a),
+        control_total=n_a,
+        treatment_successes=int(stats['B']['approval_rate'] * n_b),
+        treatment_total=n_b
+    )
+
+    # Default rate test (on approved subset)
+    default_result = two_proportion_z_test(
+        control_successes=int(stats['A']['default_rate'] * stats['A']['approval_rate'] * n_a),
+        control_total=int(stats['A']['approval_rate'] * n_a),
+        treatment_successes=int(stats['B']['default_rate'] * stats['B']['approval_rate'] * n_b),
+        treatment_total=int(stats['B']['approval_rate'] * n_b)
+    )
+
+    # Power and MDE for approval rate
+    power_approval = compute_power(
+        p1=stats['A']['approval_rate'],
+        p2=stats['B']['approval_rate'],
+        n1=n_a,
+        n2=n_b
+    )
+    mde_approval = minimum_detectable_effect(n_a, n_b, stats['A']['approval_rate'])
+
+    # Power and MDE for default rate
+    n_approved_a = int(stats['A']['approval_rate'] * n_a)
+    n_approved_b = int(stats['B']['approval_rate'] * n_b)
+
+    power_default = compute_power(
+        p1=stats['A']['default_rate'],
+        p2=stats['B']['default_rate'],
+        n1=n_approved_a,
+        n2=n_approved_b
+    )
+    mde_default = minimum_detectable_effect(n_approved_a, n_approved_b, stats['A']['default_rate'])
+
+    results = {
+        'metadata': {
+            'n_total': n,
+            'n_control': n_a,
+            'n_treatment': n_b,
+            'seed': seed
+        },
+        'approval_rate': {
+            'control': stats['A']['approval_rate'],
+            'treatment': stats['B']['approval_rate'],
+            'treatment_effect': stats['B']['approval_rate'] - stats['A']['approval_rate'],
+            'z_statistic': approval_result.z_statistic,
+            'p_value': approval_result.p_value,
+            'ci_95': [approval_result.ci_lower, approval_result.ci_upper],
+            'significant': approval_result.significant,
+            'power': power_approval,
+            'mde': mde_approval
+        },
+        'default_rate': {
+            'control': stats['A']['default_rate'],
+            'treatment': stats['B']['default_rate'],
+            'treatment_effect': stats['B']['default_rate'] - stats['A']['default_rate'],
+            'z_statistic': default_result.z_statistic,
+            'p_value': default_result.p_value,
+            'ci_95': [default_result.ci_lower, default_result.ci_upper],
+            'significant': default_result.significant,
+            'power': power_default,
+            'mde': mde_default
+        },
+        'group_stats': {
+            'A': stats['A'],
+            'B': stats['B']
         }
-    
-    # Summary stats
-    results['summary'] = {
-        'n_total': len(df),
-        'group_a_n': stats['A']['n'],
-        'group_b_n': stats['B']['n'],
-        'group_a_avg_loan': stats['A']['avg_loan_size'],
-        'group_b_avg_loan': stats['B']['avg_loan_size'],
-        'group_a_avg_proc_time': stats['A']['avg_processing_time'],
-        'group_b_avg_proc_time': stats['B']['avg_processing_time'],
     }
-    
+
     return results
 
+
 if __name__ == '__main__':
-    results = run_experiment()
     import json
-    import numpy as np
-    print(json.dumps(results, indent=2, default=lambda x: float(x) if isinstance(x, (float, np.floating)) else x))
+    results = run_experiment()
+    print(json.dumps(results, indent=2, default=lambda x: float(x) if hasattr(x, '__float__') else x))

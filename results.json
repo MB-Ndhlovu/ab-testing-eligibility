@@ -1,61 +1,52 @@
 {
+  "metadata": {
+    "n_total": 5000,
+    "n_control": 2500,
+    "n_treatment": 2500,
+    "seed": 42
+  },
   "approval_rate": {
-    "group_a": {
-      "rate": 0.6164,
-      "n": 2500,
-      "successes": 1541
-    },
-    "group_b": {
-      "rate": 0.7236,
-      "n": 2500,
-      "successes": 1809
-    },
-    "treatment_effect": 0.10720000000000007,
-    "z_statistic": 8.060378215052756,
-    "p_value": 6.661338147750939e-16,
+    "control": 0.6188,
+    "treatment": 0.7228,
+    "treatment_effect": 0.10399999999999998,
+    "z_statistic": 7.824595680859453,
+    "p_value": 5.10702591327572e-15,
     "ci_95": [
-      0.08130312470243617,
-      0.13309687529756398
+      0.07810927725579772,
+      0.12989072274420224
     ],
     "significant": true,
-    "alpha": 0.05,
-    "power_mde_80": 0.037616015625000006,
-    "power_mde_90": 0.042846875000000006,
-    "actual_power": 0.9999999999636251,
-    "effect_direction": "positive (B > A)"
+    "power": 0.99999999730623,
+    "mde": 0.0384857920837217
   },
   "default_rate": {
-    "group_a": {
-      "rate": 0.11031797534068787,
-      "n": "1541",
-      "successes": 170
-    },
-    "group_b": {
-      "rate": 0.08347153123272526,
-      "n": "1809",
-      "successes": 151
-    },
-    "treatment_effect": -0.026846444107962608,
-    "z_statistic": -2.6310410475384423,
-    "p_value": 0.008512375404214012,
+    "control": 0.11247575953458307,
+    "treatment": 0.08909795240730492,
+    "treatment_effect": -0.023377807127278147,
+    "z_statistic": -2.2508967469103607,
+    "p_value": 0.024392077837764647,
     "ci_95": [
-      -0.047023780247443275,
-      -0.0066691079684819375
+      -0.04388188254065768,
+      -0.0028737317138986147
     ],
     "significant": true,
-    "alpha": 0.05,
-    "power_mde_80": 0.033978434508841665,
-    "power_mde_90": 0.04092126282649254,
-    "actual_power": 0.6145498093300596,
-    "effect_direction": "negative (B < A)"
+    "power": 0.5731062953077729,
+    "mde": 0.03056834194868165
   },
-  "summary": {
-    "n_total": 5000,
-    "group_a_n": 2500,
-    "group_b_n": 2500,
-    "group_a_avg_loan": 43169.40491270792,
-    "group_b_avg_loan": 52382.53341314034,
-    "group_a_avg_proc_time": 44.878848356680656,
-    "group_b_avg_proc_time": 42.16677157975331
+  "group_stats": {
+    "A": {
+      "n": 2500,
+      "approval_rate": 0.6188,
+      "default_rate": 0.11247575953458307,
+      "avg_loan_size": 49726.88015903458,
+      "processing_time_mean": 50.80107185753455
+    },
+    "B": {
+      "n": 2500,
+      "approval_rate": 0.7228,
+      "default_rate": 0.08909795240730492,
+      "avg_loan_size": 57580.07651913966,
+      "processing_time_mean": 46.41037685460197
+    }
   }
 }
