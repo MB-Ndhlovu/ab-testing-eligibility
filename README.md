@@ -2,65 +2,69 @@
 
 ## Business Problem
 
-A lender wants to evaluate whether a new credit eligibility model (Group B) outperforms the current model (Group A). The goal is to make data-driven decisions about adopting the new model by running a proper statistical experiment.
+A lender wants to evaluate whether a new credit eligibility model (Group B) outperforms their current model (Group A). The framework allows them to:
 
-**Key Questions:**
-- Does the new model increase approval rates without significantly increasing default rates?
-- Is the improvement statistically significant, or just noise?
+- Test whether the new model increases approval rates without significantly affecting default rates
+- Make data-driven decisions before full deployment
+- Quantify uncertainty through confidence intervals and statistical significance
 
 ## Methodology
 
 ### Experiment Design
 
-- **Population:** Simulated loan applicants
-- **Control Group (A):** Current eligibility model
-- **Treatment Group (B):** New eligibility model
-- **Sample Size:** 5,000 applicants split evenly (2,500 per group)
+- **Control Group (A)**: Current eligibility model
+- **Treatment Group (B)**: New eligibility model
+- **Sample Size**: 5,000 applicants per group (10,000 total)
+- **Primary Metrics**: Approval rate, Default rate
+- **Secondary Metrics**: Average loan size, Processing time
 
-### Target Metrics
+### Statistical Approach
 
-| Metric | Group A (Control) | Group B (Treatment) | Direction |
-|--------|-------------------|---------------------|-----------|
-| Approval Rate | ~62% | ~71% | Higher is better |
-| Default Rate | ~11% | ~9% | Lower is better |
-| Avg Loan Size | Varies | Varies | Contextual |
-| Processing Time | Varies | Varies | Lower is better |
+We use a **two-proportion z-test** to compare proportions between groups. This test is appropriate when:
 
-### Statistical Test
+1. Samples are independent
+2. Sample sizes are large (n > 30)
+3. Data follows a binomial distribution
 
-**Two-Proportion Z-Test** — Used to compare approval rates and default rates between groups.
+### Key Statistics Reported
 
-For each metric:
-1. Compute observed proportions in each group
-2. Calculate pooled proportion under null hypothesis
-3. Compute z-statistic: $z = \frac{p_B - p_A}{\sqrt{p(1-p)(1/n_A + 1/n_B)}}$
-4. Calculate p-value from standard normal distribution
-5. Construct 95% confidence interval for the difference
-6. Conclude significance at α = 0.05
+| Metric | Description |
+|--------|-------------|
+| Z-statistic | Standardized difference between proportions |
+| P-value | Probability of observing this result by chance |
+| 95% CI | Range likely to contain the true difference |
+| Power | Probability of detecting a true effect |
 
-### Decision Rules
+### Decision Rule
 
-- **p-value < 0.05:** Reject null hypothesis → Statistically significant difference
-- **p-value ≥ 0.05:** Fail to reject null hypothesis → No significant difference
+- **Significance level (α)**: 0.05
+- If p-value < 0.05: Reject null hypothesis → statistically significant difference
+- If p-value ≥ 0.05: Fail to reject null hypothesis → no statistically significant difference
 
-## Files
+## Expected Results
 
-```
-ab-testing-eligibility/
-├── README.md
-├── requirements.txt
-├── src/
-│   ├── __init__.py
-│   ├── data_generator.py
-│   ├── statistical.py
-│   ├── simulate.py
-│   └── report.py
-└── run_pipeline.py
-```
+Based on synthetic data generation:
 
-## Getting Started
+| Metric | Group A (Control) | Group B (Treatment) |
+|--------|-------------------|---------------------|
+| Approval Rate | ~0.62 | ~0.71 |
+| Default Rate | ~0.11 | ~0.09 |
+| Avg Loan Size | ~R15,000 | ~R16,500 |
+| Processing Time | ~45 min | ~38 min |
+
+## Installation
 
 ```bash
 pip install -r requirements.txt
+```
+
+## Usage
+
+```bash
 python run_pipeline.py
 ```
+
+## Output
+
+- Console: Summary report with statistical findings
+- JSON: Full results saved to `results.json`

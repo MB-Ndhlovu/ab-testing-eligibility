@@ -1,17 +1,22 @@
 """Execute the full A/B testing pipeline."""
-
+import sys
 import os
-from src.simulate import run_experiment
-from src.report import generate_report, save_json
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from src.report import generate_report
 
 def main():
-    print("Running A/B Test Pipeline...\n")
-    results = run_experiment()
-    generate_report(results)
-    save_json(results, "ab_test_results.json")
-    return results
+    print("Running A/B Testing Pipeline...")
+    print()
 
+    from src.simulate import run_experiment
 
-if __name__ == "__main__":
+    results = run_experiment(n=5000, alpha=0.05)
+    report = generate_report(results, output_path='results.json')
+
+    print(report)
+    print("\nPipeline completed successfully.")
+
+if __name__ == '__main__':
     main()

@@ -1,54 +1,111 @@
-"""Run A/B test experiment simulation."""
+"""Run A/B test experiment simulation and compute treatment effects."""
+from src.data_generator import generate_data, compute_group_stats
+from src.statistical import two_proportion_ztest, statistical_power, minimum_detectable_effect
 
-from src.data_generator import generate_data
-from src.statistical import analyze_metric
 
+def run_experiment(n=5000, alpha=0.05):
+    """Run a complete A/B experiment.
 
-def run_experiment():
-    """Execute the A/B test experiment and return results."""
-    data = generate_data()
+    Args:
+        n: Sample size per group
+        alpha: Significance level
 
-    results = {
-        "sample_sizes": {
-            "group_A": data["group_A"]["n"],
-            "group_B": data["group_B"]["n"],
+    Returns:
+        dict with experiment results
+    """
+    # Generate data
+    df = generate_data(n)
+    stats = compute_group_stats(df)
+
+    group_a = stats['A']
+    group_b = stats['B']
+
+    # Compute approval rate test
+    approval_test = two_proportion_ztest(
+        group_a['n'], int(group_a['approval_rate'] * group_a['n']),
+        group_b['n'], int(group_b['approval_rate'] * group_b['n'])
+    )
+
+    # Compute default rate test (among approved only)
+    n_default_a = int(group_a['default_rate'] * group_a['approval_rate'] * group_a['n'])
+    n_default_b = int(group_b['default_rate'] * group_b['approval_rate'] * group_b['n'])
+    n_approved_a = int(group_a['approval_rate'] * group_a['n'])
+    n_approved_b = int(group_b['approval_rate'] * group_b['n'])
+
+    default_test = two_proportion_ztest(
+        n_approved_a, n_default_a,
+        n_approved_b, n_default_b
+    )
+
+    # Compute power and MDE for approval rate
+    power = statistical_power(n, group_a['approval_rate'], group_b['approval_rate'], alpha)
+    mde = minimum_detectable_effect(n, power=0.8, alpha=alpha, p1=group_a['approval_rate'])
+
+    # Treatment effect
+    treatment_effect_approval = group_b['approval_rate'] - group_a['approval_rate']
+    treatment_effect_default = group_b['default_rate'] - group_a['default_rate']
+
+    return {
+        'sample_size': n,
+        'alpha': alpha,
+        'group_a': group_a,
+        'group_b': group_b,
+        'approval_rate_test': approval_test,
+        'default_rate_test': default_test,
+        'treatment_effect': {
+            'approval_rate': round(treatment_effect_approval, 6),
+            'default_rate': round(treatment_effect_default, 6)
         },
-        "group_A_summary": {
-            "approval_rate": round(data["group_A"]["approval_rate"], 4),
-            "default_rate": round(data["group_A"]["default_rate"], 4),
-            "avg_loan_size": round(data["group_A"]["avg_loan_size"], 2),
-            "avg_processing_time": round(data["group_A"]["avg_processing_time"], 2),
-        },
-        "group_B_summary": {
-            "approval_rate": round(data["group_B"]["approval_rate"], 4),
-            "default_rate": round(data["group_B"]["default_rate"], 4),
-            "avg_loan_size": round(data["group_B"]["avg_loan_size"], 2),
-            "avg_processing_time": round(data["group_B"]["avg_processing_time"], 2),
-        },
+        'power': power,
+        'mde': mde
     }
 
-    # Analyze approval rate
-    approval_analysis = analyze_metric(data, "approval_rate")
-    results["approval_rate_analysis"] = {
-        "group_A_rate": round(approval_analysis["group_A_rate"], 4),
-        "group_B_rate": round(approval_analysis["group_B_rate"], 4),
-        "treatment_effect": round(approval_analysis["treatment_effect"], 4),
-        "z_statistic": round(approval_analysis["test"]["z_statistic"], 4),
-        "p_value": round(approval_analysis["test"]["p_value"], 6),
-        "ci_95": (round(approval_analysis["test"]["ci_95"][0], 4), round(approval_analysis["test"]["ci_95"][1], 4)),
-        "significant": approval_analysis["test"]["significant"],
-    }
 
-    # Analyze default rate
-    default_analysis = analyze_metric(data, "default_rate")
-    results["default_rate_analysis"] = {
-        "group_A_rate": round(default_analysis["group_A_rate"], 4),
-        "group_B_rate": round(default_analysis["group_B_rate"], 4),
-        "treatment_effect": round(default_analysis["treatment_effect"], 4),
-        "z_statistic": round(default_analysis["test"]["z_statistic"], 4),
-        "p_value": round(default_analysis["test"]["p_value"], 6),
-        "ci_95": (round(default_analysis["test"]["ci_95"][0], 4), round(default_analysis["test"]["ci_95"][1], 4)),
-        "significant": default_analysis["test"]["significant"],
-    }
+def summarize_results(results):
+    """Create a human-readable summary of the experiment results."""
+    lines = []
+    lines.append("=" * 60)
+    lines.append("A/B TESTING FRAMEWORK FOR CREDIT ELIGIBILITY")
+    lines.append("=" * 60)
+    lines.append("")
+    lines.append("EXPERIMENT CONFIGURATION")
+    lines.append(f"  Sample size per group: {results['sample_size']:,}")
+    lines.append(f"  Significance level (α): {results['alpha']}")
+    lines.append(f"  Statistical power: {min(results['power'], 1.0):.2%}")
+    lines.append(f"  Min detectable effect: {results['mde']:.4f}")
+    lines.append("")
 
-    return results
+    lines.append("GROUP-LEVEL METRICS")
+    lines.append(f"  {'Metric':<20} {'Group A (Control)':<22} {'Group B (Treatment)':<22}")
+    lines.append("-" * 64)
+    lines.append(f"  {'Approval Rate':<20} {results['group_a']['approval_rate']:.4f}{'':>14} {results['group_b']['approval_rate']:.4f}")
+    lines.append(f"  {'Default Rate':<20} {results['group_a']['default_rate']:.4f}{'':>14} {results['group_b']['default_rate']:.4f}")
+    lines.append(f"  {'Avg Loan Size':<20} R{results['group_a']['avg_loan_size']:,.2f}{'':>11} R{results['group_b']['avg_loan_size']:,.2f}")
+    lines.append(f"  {'Avg Processing Time':<20} {results['group_a']['avg_processing_time']:.2f} min{'':>8} {results['group_b']['avg_processing_time']:.2f} min")
+    lines.append("")
+
+    lines.append("APPROVAL RATE ANALYSIS (Primary Metric)")
+    lines.append(f"  Treatment effect: {results['treatment_effect']['approval_rate']:+.4f}")
+    lines.append(f"  Z-statistic: {results['approval_rate_test']['z_statistic']:.4f}")
+    lines.append(f"  P-value: {results['approval_rate_test']['p_value']:.6f}")
+    lines.append(f"  95% CI: [{results['approval_rate_test']['ci_95_lower']:.4f}, {results['approval_rate_test']['ci_95_upper']:.4f}]")
+    sig_label = "SIGNIFICANT" if results['approval_rate_test']['significant'] else "NOT SIGNIFICANT"
+    lines.append(f"  Conclusion: {sig_label} at α={results['alpha']}")
+    lines.append("")
+
+    lines.append("DEFAULT RATE ANALYSIS (Safety Metric)")
+    lines.append(f"  Treatment effect: {results['treatment_effect']['default_rate']:+.4f}")
+    lines.append(f"  Z-statistic: {results['default_rate_test']['z_statistic']:.4f}")
+    lines.append(f"  P-value: {results['default_rate_test']['p_value']:.6f}")
+    lines.append(f"  95% CI: [{results['default_rate_test']['ci_95_lower']:.4f}, {results['default_rate_test']['ci_95_upper']:.4f}]")
+    sig_label = "SIGNIFICANT" if results['default_rate_test']['significant'] else "NOT SIGNIFICANT"
+    lines.append(f"  Conclusion: {sig_label} at α={results['alpha']}")
+    lines.append("")
+    lines.append("=" * 60)
+
+    return "\n".join(lines)
+
+
+if __name__ == '__main__':
+    results = run_experiment()
+    print(summarize_results(results))
