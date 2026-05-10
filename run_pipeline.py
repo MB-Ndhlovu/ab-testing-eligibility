@@ -1,24 +1,36 @@
 import json
-from src.data_generator import generate_credit_data
 from src.simulate import run_experiment
 from src.report import generate_report
 
-
 def main():
-    print("Generating synthetic credit eligibility data...")
-    df = generate_credit_data(n=5000, seed=42)
+    print("Running A/B Test Pipeline...")
+    print()
+    
+    results = run_experiment(seed=42)
+    
+    report = generate_report(results)
+    print(report)
+    
+    # Save JSON results
+    with open('/home/workspace/Projects/ab-testing-eligibility/results.json', 'w') as f:
+        # Convert numpy types to native Python for JSON serialization
+        def convert(obj):
+            if hasattr(obj, 'item'):
+                return obj.item()
+            return obj
+        
+        json_results = {}
+        for k, v in results.items():
+            if isinstance(v, dict):
+                json_results[k] = {kk: convert(vv) for kk, vv in v.items()}
+            else:
+                json_results[k] = convert(v)
+        
+        json.dump(json_results, f, indent=2, default=str)
+    
+    print("\n💾 Results saved to results.json")
+    
+    return results
 
-    print("Running A/B experiment simulation...")
-    results = run_experiment(df, alpha=0.05)
-
-    print("\n" + generate_report(results))
-
-    output_path = "/home/workspace/Projects/ab-testing-eligibility/results.json"
-    with open(output_path, "w") as f:
-        json.dump(results, f, indent=2, default=lambda o: float(o) if hasattr(o, 'item') else o)
-
-    print(f"\nResults saved to {output_path}")
-
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
