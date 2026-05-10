@@ -2,32 +2,62 @@
 
 ## Business Problem
 
-A lender wants to test a new credit eligibility model against their current model. The goal is to determine whether the new model improves key business metrics — specifically approval rate and default rate — without introducing unacceptable risk.
+A lender wants to evaluate whether a new credit eligibility model (Group B) improves upon their current model (Group A). The key metrics of interest are:
 
-- **Group A (Control)**: Current eligibility model
-- **Group B (Treatment)**: New eligibility model
+- **Approval Rate** — percentage of loan applications approved
+- **Default Rate** — percentage of approved loans that go into default
 
-The new model is expected to be slightly better on both metrics: higher approval rate (more loans originated) and lower default rate (less credit risk).
+The goal is to determine if the new model approves more loans without significantly increasing default risk, or ideally, improves both metrics.
 
 ## Methodology
 
-1. **Data Generation**: Simulate 5,000 loan applications split evenly between control (A) and treatment (B) groups
-2. **Outcome Simulation**: Each applicant receives a simulated outcome — approved/denied, default/no default, loan size, processing time
-3. **Statistical Testing**: Two-proportion z-test for each metric, comparing groups A and B
-4. **Reporting**: Confidence intervals, p-values, and statistical significance at α = 0.05
+### Experimental Design
 
-## Key Metrics
+- **Control (Group A):** Current eligibility model
+- **Treatment (Group B):** New eligibility model
+- **Sample size:** 5,000 applicants per group (10,000 total)
+- **Assignment:** Simple random assignment, 50/50 split
+
+### Target Parameters
 
 | Metric | Group A (Control) | Group B (Treatment) |
 |--------|-------------------|---------------------|
 | Approval Rate | ~62% | ~71% |
 | Default Rate | ~11% | ~9% |
 
+### Statistical Approach
+
+We apply a **two-proportion z-test** to each metric independently. For each test:
+
+1. **Null hypothesis (H₀):** No difference between group proportions
+2. **Alternative (H₁):** Significant difference exists
+3. **Significance level:** α = 0.05
+4. **Test statistic:** Two-proportion z-test
+
+We compute:
+- **z-statistic** — standard normal test statistic
+- **p-value** — two-tailed probability under H₀
+- **95% confidence interval** — for the difference in proportions
+- **Statistical power** — probability of detecting a true effect
+- **Minimum detectable effect (MDE)** — smallest effect the study can detect
+
+## Output
+
+The pipeline produces:
+- `results.json` — full statistical results for each metric
+- Console summary — human-readable findings
+
 ## Files
 
-- `src/data_generator.py` — Synthetic data generation (5,000 rows, A/B split)
-- `src/statistical.py` — Two-proportion z-test, CI, power analysis
-- `src/simulate.py` — Experiment runner and treatment effect computation
-- `src/report.py` — Formatted summary report
-- `run_pipeline.py` — End-to-end execution script
-- `requirements.txt` — Dependencies
+```
+ab-testing-eligibility/
+├── README.md
+├── requirements.txt
+├── run_pipeline.py
+└── src/
+    ├── __init__.py
+    ├── data_generator.py
+    ├── statistical.py
+    ├── simulate.py
+    └── report.py
+```

@@ -1,22 +1,34 @@
+"""
+Execute the full A/B testing pipeline.
+Generates data, runs statistical tests, prints report, saves JSON.
+"""
+
 import json
-from src.simulate import run_simulation
+import sys
+from pathlib import Path
+
+from src.simulate import run_experiment
 from src.report import generate_report
 
+
 def main():
-    results = run_simulation(n=5000, alpha=0.05)
-    results["tests"]["approval_rate"]["significant"] = bool(results["tests"]["approval_rate"]["significant"])
-    results["tests"]["default_rate"]["significant"] = bool(results["tests"]["default_rate"]["significant"])
+    project_root = Path(__file__).parent
+    output_path = project_root / "results.json"
+
+    print("Running A/B experiment simulation...\n")
+
+    results = run_experiment(n=5000)
     report = generate_report(results)
 
     print(report)
-    print()
 
-    output_path = "/home/workspace/Projects/ab-testing-eligibility/results.json"
     with open(output_path, "w") as f:
         json.dump(results, f, indent=2)
-    print(f"Results saved to {output_path}")
+
+    print(f"\nResults saved to: {output_path}")
 
     return results
 
+
 if __name__ == "__main__":
-    main()
+    results = main()

@@ -1,55 +1,121 @@
+"""
+Statistical tests for two-proportion A/B tests.
+Implements two-proportion z-test, confidence intervals, power, and MDE.
+"""
+
 import numpy as np
 from scipy import stats
+from typing import NamedTuple
 
-def two_proportion_ztest(n_success_a, n_trials_a, n_success_b, n_trials_b):
-    p_a = n_success_a / n_trials_a
-    p_b = n_success_b / n_trials_b
-    p_pool = (n_success_a + n_success_b) / (n_trials_a + n_trials_b)
-    se = np.sqrt(p_pool * (1 - p_pool) * (1 / n_trials_a + 1 / n_trials_b))
-    z = (p_b - p_a) / se
-    p_value = 2 * (1 - stats.norm.cdf(abs(z)))
-    return z, p_value, p_a, p_b
 
-def confidence_interval(n_success_a, n_trials_a, n_success_b, n_trials_b, alpha=0.05):
-    p_a = n_success_a / n_trials_a
-    p_b = n_success_b / n_trials_b
-    diff = p_b - p_a
-    se = np.sqrt(p_a * (1 - p_a) / n_trials_a + p_b * (1 - p_b) / n_trials_b)
+class ZTestResult(NamedTuple):
+    """Results from a two-proportion z-test."""
+    z_statistic: float
+    p_value: float
+    ci_lower: float
+    ci_upper: float
+    diff: float
+    se: float
+    significant: bool
+
+
+def two_proportion_ztest(n1: int, x1: int, n2: int, x2: int) -> ZTestResult:
+    """
+    Two-proportion z-test comparing rates between control and treatment.
+
+    Args:
+        n1: Control group sample size
+        x1: Control group successes (e.g., approvals)
+        n2: Treatment group sample size
+        x2: Treatment group successes (e.g., approvals)
+
+    Returns:
+        ZTestResult with z-statistic, p-value, 95% CI, and significance
+    """
+    p1 = x1 / n1 if n1 > 0 else 0
+    p2 = x2 / n2 if n2 > 0 else 0
+
+    diff = p2 - p1
+
+    # Pooled proportion under null hypothesis
+    p_pooled = (x1 + x2) / (n1 + n2) if (n1 + n2) > 0 else 0
+
+    # Standard error under null (pooled)
+    se_null = np.sqrt(p_pooled * (1 - p_pooled) * (1/n1 + 1/n2)) if (n1 > 0 and n2 > 0) else 0
+
+    # Standard error for CI (unpooled, more appropriate for CI)
+    se_ci = np.sqrt((p1 * (1 - p1) / n1) + (p2 * (1 - p2) / n2)) if (n1 > 0 and n2 > 0) else 0
+
+    z_stat = diff / se_null if se_null > 0 else 0
+
+    # Two-tailed p-value
+    p_value = 2 * (1 - stats.norm.cdf(abs(z_stat)))
+
+    # 95% CI for the difference (using unpooled SE)
+    margin = 1.96 * se_ci
+    ci_lower = diff - margin
+    ci_upper = diff + margin
+
+    significant = p_value < 0.05
+
+    return ZTestResult(
+        z_statistic=z_stat,
+        p_value=p_value,
+        ci_lower=ci_lower,
+        ci_upper=ci_upper,
+        diff=diff,
+        se=se_ci,
+        significant=significant,
+    )
+
+
+def compute_power(n1: int, n2: int, p1: float, p2: float, alpha: float = 0.05) -> float:
+    """
+    Compute statistical power for a two-proportion z-test.
+
+    Args:
+        n1: Control group sample size
+        n2: Treatment group sample size
+        p1: Control proportion
+        p2: Treatment proportion
+        alpha: Significance level
+
+    Returns:
+        Power (probability of detecting a true effect)
+    """
+    diff = abs(p2 - p1)
+    if diff == 0:
+        return alpha
+
+    p_pooled = (p1 + p2) / 2
+    se_null = np.sqrt(p_pooled * (1 - p_pooled) * (1/n1 + 1/n2))
+    se_alt = np.sqrt((p1 * (1 - p1) / n1) + (p2 * (1 - p2) / n2))
+
     z_crit = stats.norm.ppf(1 - alpha / 2)
-    return diff, (diff - z_crit * se, diff + z_crit * se)
+    z_effect = diff / se_alt
 
-def statistical_power(n_a, n_b, p_a, p_b, alpha=0.05, mde=None):
-    if mde is None:
-        mde = abs(p_b - p_a) * 0.5
-    p_pool = (p_a * n_a + p_b * n_b) / (n_a + n_b)
-    se = np.sqrt(p_pool * (1 - p_pool) * (1 / n_a + 1 / n_b))
-    z_alpha = stats.norm.ppf(1 - alpha / 2)
-    z_beta = (mde * np.sqrt(n_a * n_b / (n_a + n_b)) - z_alpha * se) / se
-    return 1 - stats.norm.cdf(z_beta)
+    power = stats.norm.cdf(z_effect - z_crit) + stats.norm.cdf(-z_effect - z_crit)
+    return power
 
-def minimum_detectable_effect(n_a, n_b, p_a, alpha=0.05, power=0.80):
+
+def compute_mde(n1: int, n2: int, p1: float, alpha: float = 0.05, power: float = 0.80) -> float:
+    """
+    Compute minimum detectable effect (MDE) for a two-proportion z-test.
+
+    Args:
+        n1: Control group sample size
+        n2: Treatment group sample size
+        p1: Control proportion
+        alpha: Significance level
+        power: Desired statistical power (default 0.80)
+
+    Returns:
+        Minimum detectable absolute difference in proportions
+    """
     z_alpha = stats.norm.ppf(1 - alpha / 2)
     z_beta = stats.norm.ppf(power)
-    p_pool = p_a * (1 - p_a)
-    se = np.sqrt(p_pool * (2 / n_a))
-    return (z_alpha + z_beta) * se
 
-def test_metric(group_a, group_b, metric_name, n_trials_a, n_trials_b, alpha=0.05):
-    n_success_a = int(group_a[metric_name] * n_trials_a)
-    n_success_b = int(group_b[metric_name] * n_trials_b)
+    se_null = np.sqrt(2 * p1 * (1 - p1) / ((1/n1 + 1/n2)))
 
-    z, p_val, p_a, p_b = two_proportion_ztest(n_success_a, n_trials_a, n_success_b, n_trials_b)
-    diff, ci = confidence_interval(n_success_a, n_trials_a, n_success_b, n_trials_b, alpha)
-    significant = p_val < alpha
-
-    return {
-        "metric": metric_name,
-        "group_a_rate": round(p_a, 4),
-        "group_b_rate": round(p_b, 4),
-        "diff": round(diff, 4),
-        "ci_lower": round(ci[0], 4),
-        "ci_upper": round(ci[1], 4),
-        "z_statistic": round(z, 4),
-        "p_value": round(p_val, 6),
-        "significant": significant,
-    }
+    mde = (z_alpha + z_beta) * se_null
+    return mde
