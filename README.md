@@ -2,57 +2,65 @@
 
 ## Business Problem
 
-A lender wants to test a new credit eligibility model (Group B) against their current model (Group A). The goal is to determine whether the new model improves key business metrics — specifically **approval rate** and **default rate** — without increasing financial risk.
+A lender wants to evaluate whether a new credit eligibility model (Group B) outperforms the current model (Group A). The goal is to make data-driven decisions about adopting the new model by running a proper statistical experiment.
 
-## Current State
-
-- **Group A (Control):** Current eligibility model
-  - Approval rate: ~62%
-  - Default rate: ~11%
-  - Avg loan size: $12,000–$18,000
-  - Processing time: 3–7 days
-
-- **Group B (Treatment):** New eligibility model
-  - Target approval rate: ~71% (higher approvals)
-  - Target default rate: ~9% (lower defaults)
-  - Avg loan size: $13,000–$20,000
-  - Processing time: 2–5 days
+**Key Questions:**
+- Does the new model increase approval rates without significantly increasing default rates?
+- Is the improvement statistically significant, or just noise?
 
 ## Methodology
 
-### Data Generation
-- 5,000 synthetic loan applications split evenly between groups A and B (2,500 each)
-- Realistic noise added to simulate real-world variance
-- Each record includes: application_id, group, outcome (approved/denied), default flag, loan_size, processing_days
+### Experiment Design
 
-### Statistical Testing
-A **two-proportion z-test** is used for each metric:
+- **Population:** Simulated loan applicants
+- **Control Group (A):** Current eligibility model
+- **Treatment Group (B):** New eligibility model
+- **Sample Size:** 5,000 applicants split evenly (2,500 per group)
 
-1. **Approval Rate** — Testing if the new model approves more loans
-2. **Default Rate** — Testing if the new model has fewer defaults
+### Target Metrics
 
-For each test we compute:
-- Observed proportions for each group
-- Pooled proportion under null hypothesis
-- Z-statistic
-- Two-tailed p-value
-- 95% Confidence Interval for the difference
-- Statistical conclusion at α = 0.05
+| Metric | Group A (Control) | Group B (Treatment) | Direction |
+|--------|-------------------|---------------------|-----------|
+| Approval Rate | ~62% | ~71% | Higher is better |
+| Default Rate | ~11% | ~9% | Lower is better |
+| Avg Loan Size | Varies | Varies | Contextual |
+| Processing Time | Varies | Varies | Lower is better |
 
-### Minimum Detectable Effect (MDE)
-For a two-proportion z-test with:
-- α = 0.05 (two-tailed)
-- Power = 80%
-- Baseline proportion (pA)
-- Treatment proportion (pB)
+### Statistical Test
 
-The MDE tells us the smallest effect size the test can reliably detect given the sample size.
+**Two-Proportion Z-Test** — Used to compare approval rates and default rates between groups.
 
-## Success Criteria
+For each metric:
+1. Compute observed proportions in each group
+2. Calculate pooled proportion under null hypothesis
+3. Compute z-statistic: $z = \frac{p_B - p_A}{\sqrt{p(1-p)(1/n_A + 1/n_B)}}$
+4. Calculate p-value from standard normal distribution
+5. Construct 95% confidence interval for the difference
+6. Conclude significance at α = 0.05
 
-| Metric | Group A | Group B | Direction |
-|--------|---------|---------|-----------|
-| Approval Rate | ~62% | ~71% | ↑ Better |
-| Default Rate | ~11% | ~9% | ↓ Better |
+### Decision Rules
 
-A result is **statistically significant** if p-value < 0.05, meaning we can reject the null hypothesis that the models perform identically.
+- **p-value < 0.05:** Reject null hypothesis → Statistically significant difference
+- **p-value ≥ 0.05:** Fail to reject null hypothesis → No significant difference
+
+## Files
+
+```
+ab-testing-eligibility/
+├── README.md
+├── requirements.txt
+├── src/
+│   ├── __init__.py
+│   ├── data_generator.py
+│   ├── statistical.py
+│   ├── simulate.py
+│   └── report.py
+└── run_pipeline.py
+```
+
+## Getting Started
+
+```bash
+pip install -r requirements.txt
+python run_pipeline.py
+```

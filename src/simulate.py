@@ -1,42 +1,54 @@
-"""Run the A/B experiment simulation."""
+"""Run A/B test experiment simulation."""
 
-import json
-from src.data_generator import generate_data, compute_group_metrics
-from src.statistical import two_proportion_ztest
+from src.data_generator import generate_data
+from src.statistical import analyze_metric
 
 
-def run_simulation(seed: int = 42) -> dict:
-    """Run the full A/B experiment pipeline.
+def run_experiment():
+    """Execute the A/B test experiment and return results."""
+    data = generate_data()
 
-    Args:
-        seed: Random seed for data generation.
-
-    Returns:
-        dict containing raw data, metrics, and statistical results.
-    """
-    df = generate_data(n=5000, seed=seed)
-
-    metrics = compute_group_metrics(df)
-
-    # Two-proportion z-test for approval rate
-    approval_results = two_proportion_ztest(
-        n_A=metrics["A"]["n"],
-        x_A=int(metrics["A"]["approval_rate"] * metrics["A"]["n"]),
-        n_B=metrics["B"]["n"],
-        x_B=int(metrics["B"]["approval_rate"] * metrics["B"]["n"]),
-    )
-
-    # Two-proportion z-test for default rate
-    default_results = two_proportion_ztest(
-        n_A=metrics["A"]["n"],
-        x_A=int(metrics["A"]["default_rate"] * metrics["A"]["n"]),
-        n_B=metrics["B"]["n"],
-        x_B=int(metrics["B"]["default_rate"] * metrics["B"]["n"]),
-    )
-
-    return {
-        "data": df.to_dict(orient="records"),
-        "metrics": metrics,
-        "approval_test": approval_results,
-        "default_test": default_results,
+    results = {
+        "sample_sizes": {
+            "group_A": data["group_A"]["n"],
+            "group_B": data["group_B"]["n"],
+        },
+        "group_A_summary": {
+            "approval_rate": round(data["group_A"]["approval_rate"], 4),
+            "default_rate": round(data["group_A"]["default_rate"], 4),
+            "avg_loan_size": round(data["group_A"]["avg_loan_size"], 2),
+            "avg_processing_time": round(data["group_A"]["avg_processing_time"], 2),
+        },
+        "group_B_summary": {
+            "approval_rate": round(data["group_B"]["approval_rate"], 4),
+            "default_rate": round(data["group_B"]["default_rate"], 4),
+            "avg_loan_size": round(data["group_B"]["avg_loan_size"], 2),
+            "avg_processing_time": round(data["group_B"]["avg_processing_time"], 2),
+        },
     }
+
+    # Analyze approval rate
+    approval_analysis = analyze_metric(data, "approval_rate")
+    results["approval_rate_analysis"] = {
+        "group_A_rate": round(approval_analysis["group_A_rate"], 4),
+        "group_B_rate": round(approval_analysis["group_B_rate"], 4),
+        "treatment_effect": round(approval_analysis["treatment_effect"], 4),
+        "z_statistic": round(approval_analysis["test"]["z_statistic"], 4),
+        "p_value": round(approval_analysis["test"]["p_value"], 6),
+        "ci_95": (round(approval_analysis["test"]["ci_95"][0], 4), round(approval_analysis["test"]["ci_95"][1], 4)),
+        "significant": approval_analysis["test"]["significant"],
+    }
+
+    # Analyze default rate
+    default_analysis = analyze_metric(data, "default_rate")
+    results["default_rate_analysis"] = {
+        "group_A_rate": round(default_analysis["group_A_rate"], 4),
+        "group_B_rate": round(default_analysis["group_B_rate"], 4),
+        "treatment_effect": round(default_analysis["treatment_effect"], 4),
+        "z_statistic": round(default_analysis["test"]["z_statistic"], 4),
+        "p_value": round(default_analysis["test"]["p_value"], 6),
+        "ci_95": (round(default_analysis["test"]["ci_95"][0], 4), round(default_analysis["test"]["ci_95"][1], 4)),
+        "significant": default_analysis["test"]["significant"],
+    }
+
+    return results

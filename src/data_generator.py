@@ -1,74 +1,59 @@
-"""Generate synthetic loan application data for A/B testing."""
+"""Generate synthetic credit eligibility data for A/B testing."""
 
 import numpy as np
-import pandas as pd
+
+np.random.seed(42)
+
+N = 5000
+N_A = N // 2
+N_B = N // 2
+
+APPROVAL_RATE_A = 0.62
+APPROVAL_RATE_B = 0.71
+
+DEFAULT_RATE_A = 0.11
+DEFAULT_RATE_B = 0.09
 
 
-def generate_data(n: int = 5000, seed: int = 42) -> pd.DataFrame:
-    """Generate synthetic loan application data.
+def generate_data():
+    """Generate synthetic loan applicant data for both groups."""
+    # Group A (control) outcomes
+    approved_A = np.random.random(N_A) < APPROVAL_RATE_A
+    defaulted_A = np.random.random(N_A) < DEFAULT_RATE_A
 
-    Args:
-        n: Total number of records.
-        seed: Random seed for reproducibility.
+    # Group B (treatment) outcomes
+    approved_B = np.random.random(N_B) < APPROVAL_RATE_B
+    defaulted_B = np.random.random(N_B) < DEFAULT_RATE_B
 
-    Returns:
-        DataFrame with columns: application_id, group, approved, defaulted, loan_size, processing_days
-    """
-    np.random.seed(seed)
-    half = n // 2
+    # Loan amounts (in thousands, lognormal for realism)
+    loan_size_A = np.random.lognormal(mean=4.2, sigma=0.9, size=N_A)
+    loan_size_B = np.random.lognormal(mean=4.3, sigma=0.9, size=N_B)
 
-    # Group A: control — approval ~62%, default ~11%
-    group_a_approved = np.random.rand(half) < 0.62
-    group_a_defaulted = np.zeros(half, dtype=bool)
-    group_a_defaulted[group_a_approved] = np.random.rand(group_a_approved.sum()) < 0.11
+    # Processing time in hours (gamma distribution)
+    processing_time_A = np.random.gamma(shape=2.0, scale=2.5, size=N_A)
+    processing_time_B = np.random.gamma(shape=2.2, scale=2.2, size=N_B)
 
-    # Group B: treatment — approval ~71%, default ~9%
-    group_b_approved = np.random.rand(half) < 0.71
-    group_b_defaulted = np.zeros(half, dtype=bool)
-    group_b_defaulted[group_b_approved] = np.random.rand(group_b_approved.sum()) < 0.09
-
-    # Loan sizes with realistic variance
-    loan_sizes_a = np.random.lognormal(mean=9.5, sigma=0.45, size=half).clip(1000, 150000)
-    loan_sizes_b = np.random.lognormal(mean=9.7, sigma=0.45, size=half).clip(1000, 150000)
-
-    # Processing days (approved applications only)
-    proc_a = np.random.normal(5.0, 1.2, size=half)
-    proc_a[~group_a_approved] = np.random.normal(8.0, 2.0, size=(~group_a_approved).sum())
-    proc_b = np.random.normal(3.5, 1.0, size=half)
-    proc_b[~group_b_approved] = np.random.normal(7.5, 1.8, size=(~group_b_approved).sum())
-
-    df_a = pd.DataFrame({
-        "application_id": [f"A-{i:05d}" for i in range(half)],
-        "group": "A",
-        "approved": group_a_approved,
-        "defaulted": group_a_defaulted,
-        "loan_size": loan_sizes_a.round(2),
-        "processing_days": proc_a.round(1),
-    })
-
-    df_b = pd.DataFrame({
-        "application_id": [f"B-{i:05d}" for i in range(half)],
-        "group": "B",
-        "approved": group_b_approved,
-        "defaulted": group_b_defaulted,
-        "loan_size": loan_sizes_b.round(2),
-        "processing_days": proc_b.round(1),
-    })
-
-    return pd.concat([df_a, df_b], ignore_index=True)
-
-
-def compute_group_metrics(df: pd.DataFrame) -> dict:
-    """Compute summary metrics per group."""
-    results = {}
-    for group, grp in df.groupby("group"):
-        approved = grp["approved"]
-        defaulted = grp["defaulted"]
-        results[group] = {
-            "n": len(grp),
-            "approval_rate": approved.mean(),
-            "default_rate": defaulted.mean(),
-            "avg_loan_size": grp["loan_size"].mean(),
-            "avg_processing_days": grp["processing_days"].mean(),
-        }
-    return results
+    return {
+        "group_A": {
+            "approved": approved_A,
+            "defaulted": defaulted_A,
+            "loan_size": loan_size_A,
+            "processing_time": processing_time_A,
+            "n": N_A,
+            "approval_rate": approved_A.mean(),
+            "default_rate": defaulted_A.mean(),
+            "avg_loan_size": loan_size_A.mean(),
+            "avg_processing_time": processing_time_A.mean(),
+        },
+        "group_B": {
+            "approved": approved_B,
+            "defaulted": defaulted_B,
+            "loan_size": loan_size_B,
+            "processing_time": processing_time_B,
+            "n": N_B,
+            "approval_rate": approved_B.mean(),
+            "default_rate": defaulted_B.mean(),
+            "avg_loan_size": loan_size_B.mean(),
+            "avg_processing_time": processing_time_B.mean(),
+        },
+    }
