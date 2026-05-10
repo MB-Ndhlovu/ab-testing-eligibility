@@ -2,39 +2,57 @@
 
 ## Business Problem
 
-A lender wants to test whether a new credit eligibility model (treatment group B) outperforms their current model (control group A). The key metrics are:
+A lender wants to test a new credit eligibility model (Group B) against their current model (Group A). The goal is to determine whether the new model improves key business metrics — specifically **approval rate** and **default rate** — without increasing financial risk.
 
-- **Approval Rate**: Higher is better (more loans originated)
-- **Default Rate**: Lower is better (lower risk)
+## Current State
 
-The new model is expected to improve both metrics simultaneously — more approvals with fewer defaults. However, the improvement must be statistically significant before deploying to production.
+- **Group A (Control):** Current eligibility model
+  - Approval rate: ~62%
+  - Default rate: ~11%
+  - Avg loan size: $12,000–$18,000
+  - Processing time: 3–7 days
+
+- **Group B (Treatment):** New eligibility model
+  - Target approval rate: ~71% (higher approvals)
+  - Target default rate: ~9% (lower defaults)
+  - Avg loan size: $13,000–$20,000
+  - Processing time: 2–5 days
 
 ## Methodology
 
-1. **Synthetic Data Generation**: Simulate 5,000 loan applications split evenly between control (A) and treatment (B)
-2. **Two-Proportion Z-Test**: Test whether the observed difference in approval_rate and default_rate between groups is statistically significant
-3. **Confidence Intervals**: Report 95% CI for the true difference in proportions
-4. **Effect Size**: Report minimum detectable effect at 80% power
+### Data Generation
+- 5,000 synthetic loan applications split evenly between groups A and B (2,500 each)
+- Realistic noise added to simulate real-world variance
+- Each record includes: application_id, group, outcome (approved/denied), default flag, loan_size, processing_days
 
-## Key Assumptions
+### Statistical Testing
+A **two-proportion z-test** is used for each metric:
 
-| Parameter | Control (A) | Treatment (B) |
-|-----------|-------------|---------------|
-| Approval Rate | ~62% | ~71% |
-| Default Rate | ~11% | ~9% |
-| Sample Size | 2,500 | 2,500 |
-| Significance Level (α) | 0.05 | 0.05 |
+1. **Approval Rate** — Testing if the new model approves more loans
+2. **Default Rate** — Testing if the new model has fewer defaults
 
-## Files
+For each test we compute:
+- Observed proportions for each group
+- Pooled proportion under null hypothesis
+- Z-statistic
+- Two-tailed p-value
+- 95% Confidence Interval for the difference
+- Statistical conclusion at α = 0.05
 
-- `src/data_generator.py` — Generate synthetic loan data
-- `src/statistical.py` — Two-proportion z-test, CIs, power analysis
-- `src/simulate.py` — Run experiment simulation
-- `src/report.py` — Human-readable summary
-- `run_pipeline.py` — Execute full pipeline
+### Minimum Detectable Effect (MDE)
+For a two-proportion z-test with:
+- α = 0.05 (two-tailed)
+- Power = 80%
+- Baseline proportion (pA)
+- Treatment proportion (pB)
 
-## Interpretation Guide
+The MDE tells us the smallest effect size the test can reliably detect given the sample size.
 
-- **p < 0.05**: Statistically significant difference — reject null hypothesis
-- **p ≥ 0.05**: Not statistically significant — cannot conclude improvement
-- **CI excludes 0**: Consistent with statistically significant result
+## Success Criteria
+
+| Metric | Group A | Group B | Direction |
+|--------|---------|---------|-----------|
+| Approval Rate | ~62% | ~71% | ↑ Better |
+| Default Rate | ~11% | ~9% | ↓ Better |
+
+A result is **statistically significant** if p-value < 0.05, meaning we can reject the null hypothesis that the models perform identically.
