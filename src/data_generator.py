@@ -1,86 +1,51 @@
-"""
-Data generator for A/B test simulation.
-Generates synthetic credit application data for control and treatment groups.
-"""
-
 import numpy as np
-from typing import Tuple
+import pandas as pd
 
-np.random.seed(42)
-
-
-def generate_data(n: int = 5000) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Generate synthetic credit application outcomes for two groups.
-
-    Group A (control): current eligibility model
-    Group B (treatment): new eligibility model
-
-    Args:
-        n: Number of applicants per group
-
-    Returns:
-        Tuple of (group_A_outcomes, group_B_outcomes) where each is a dict with:
-            - approved: array of 0/1
-            - defaulted: array of 0/1
-            - loan_size: array of loan amounts
-            - processing_time: array of processing times in hours
-    """
-    # Group A (control): approval ~62%, default ~11%
-    approved_A = np.random.binomial(1, 0.62, n)
-    defaulted_given_approved_A = np.random.binomial(1, 0.11, n)
-    defaulted_A = approved_A * defaulted_given_approved_A
-
-    # Loan size: log-normal distribution centered around R50,000
-    loan_size_A = np.exp(np.random.normal(loc=10.8, scale=0.9, size=n))
-    loan_size_A = np.clip(loan_size_A, 1000, 500000)
-
-    # Processing time: right-skewed, ~24-72 hours typical
-    processing_time_A = np.random.gamma(shape=2.5, scale=12, size=n) + 8
-
-    # Group B (treatment): approval ~71%, default ~9%
-    approved_B = np.random.binomial(1, 0.71, n)
-    defaulted_given_approved_B = np.random.binomial(1, 0.09, n)
-    defaulted_B = approved_B * defaulted_given_approved_B
-
-    loan_size_B = np.exp(np.random.normal(loc=10.9, scale=0.9, size=n))
-    loan_size_B = np.clip(loan_size_B, 1000, 500000)
-
-    processing_time_B = np.random.gamma(shape=2.5, scale=11, size=n) + 7
-
-    outcomes_A = {
-        "approved": approved_A,
-        "defaulted": defaulted_A,
-        "loan_size": loan_size_A,
-        "processing_time": processing_time_A,
-    }
-    outcomes_B = {
-        "approved": approved_B,
-        "defaulted": defaulted_B,
-        "loan_size": loan_size_B,
-        "processing_time": processing_time_B,
-    }
-
-    return outcomes_A, outcomes_B
+def generate_credit_data(n=5000, seed=42):
+    np.random.seed(seed)
+    
+    half = n // 2
+    
+    # Group A (control): approval_rate ~0.62, default_rate ~0.11
+    group_a_approved = np.random.random(half) < 0.62
+    group_a_defaulted = np.random.random(half) < 0.11
+    
+    # Group B (treatment): approval_rate ~0.71, default_rate ~0.09
+    group_b_approved = np.random.random(half) < 0.71
+    group_b_defaulted = np.random.random(half) < 0.09
+    
+    df_a = pd.DataFrame({
+        'loan_id': range(half),
+        'group': 'A',
+        'approved': group_a_approved,
+        'defaulted': group_a_defaulted,
+        'loan_size': np.random.lognormal(9.5, 0.6, half),
+        'processing_time': np.random.exponential(48, half) + 10
+    })
+    
+    df_b = pd.DataFrame({
+        'loan_id': range(half, n),
+        'group': 'B',
+        'approved': group_b_approved,
+        'defaulted': group_b_defaulted,
+        'loan_size': np.random.lognormal(9.7, 0.6, half),
+        'processing_time': np.random.exponential(45, half) + 8
+    })
+    
+    df = pd.concat([df_a, df_b], ignore_index=True)
+    df['loan_size'] = df['loan_size'].clip(1000, 500000).round(2)
+    df['processing_time'] = df['processing_time'].round(1)
+    
+    return df
 
 
-def compute_group_stats(outcomes: dict) -> dict:
-    """
-    Compute aggregate statistics for a group.
-    """
-    approved = outcomes["approved"]
-    defaulted = outcomes["defaulted"]
-    loan_size = outcomes["loan_size"]
-    processing_time = outcomes["processing_time"]
-
-    n = len(approved)
-    n_approved = approved.sum()
-
+def compute_group_stats(df, group):
+    g = df[df['group'] == group]
+    n = len(g)
     return {
-        "n": n,
-        "n_approved": n_approved,
-        "approval_rate": approved.mean(),
-        "default_rate": defaulted.sum() / n_approved if n_approved > 0 else 0,
-        "avg_loan_size": loan_size[approved == 1].mean() if n_approved > 0 else 0,
-        "avg_processing_time": processing_time.mean(),
+        'n': n,
+        'approval_rate': g['approved'].mean(),
+        'default_rate': g['defaulted'].mean(),
+        'avg_loan_size': g['loan_size'].mean(),
+        'avg_processing_time': g['processing_time'].mean()
     }
