@@ -1,52 +1,50 @@
 {
-  "metrics_a": {
-    "n": 2500,
-    "approval_rate": 0.6188,
-    "default_rate": 0.08726567550096961,
-    "avg_loan_size": 68729.51244502753,
-    "avg_processing_time": 4.799980795197496
+  "group_a": {
+    "n": 5000,
+    "approvals": 3101,
+    "approval_rate": 0.6202,
+    "defaults": 354,
+    "default_rate": 0.11415672363753628,
+    "avg_loan_size": 15680.167668003167,
+    "avg_processing_time": 4.630909488576056
   },
-  "metrics_b": {
-    "n": 2500,
-    "approval_rate": 0.6948,
-    "default_rate": 0.0800230282095567,
-    "avg_loan_size": 77289.1775448672,
-    "avg_processing_time": 4.725144246493445
+  "group_b": {
+    "n": 5000,
+    "approvals": 3518,
+    "approval_rate": 0.7036,
+    "defaults": 347,
+    "default_rate": 0.09863558840250142,
+    "avg_loan_size": 16216.393422857744,
+    "avg_processing_time": 3.899093830684519
   },
-  "approval_rate_test": {
-    "metric": "approval_rate",
-    "group_a_value": 0.6188,
-    "group_b_value": 0.6948,
-    "treatment_effect": 0.076,
-    "z_statistic": 5.6595,
+  "approval_test": {
+    "z_statistic": 8.814897751209038,
     "p_value": 0.0,
-    "ci_95": [
-      0.034096,
-      0.117904
-    ],
-    "significant": "True",
-    "alpha": 0.05,
-    "power_analysis": {
-      "min_sample_size_per_group": 613,
-      "min_detectable_effect": 0.076
-    }
+    "diff": 0.08340000000000003,
+    "ci_lower": 0.06492812560458472,
+    "ci_upper": 0.10187187439541534,
+    "significant": true,
+    "p1": 0.6202,
+    "p2": 0.7036
   },
-  "default_rate_test": {
-    "metric": "default_rate",
-    "group_a_value": 0.087266,
-    "group_b_value": 0.080023,
-    "treatment_effect": -0.007243,
-    "z_statistic": -0.9249,
-    "p_value": 0.35501,
-    "ci_95": [
-      -0.026176,
-      0.011691
-    ],
-    "significant": "False",
-    "alpha": 0.05,
-    "power_analysis": {
-      "min_sample_size_per_group": 22938,
-      "min_detectable_effect": 0.0072
-    }
-  }
+  "default_test": {
+    "z_statistic": -2.0477266609692224,
+    "p_value": 0.04058678995326814,
+    "diff": -0.015521135235034858,
+    "ci_lower": -0.030432904340936838,
+    "ci_upper": -0.0006093661291328781,
+    "significant": true,
+    "p1": 0.11415672363753628,
+    "p2": 0.09863558840250142
+  },
+  "power": {
+    "approval": 0.9999999999971982,
+    "default": 0.5319651214862136
+  },
+  "mde": {
+    "approval": 0.027194256785065533,
+    "default": 0.021944739086948706
+  },
+  "sample_size": 5000,
+  "alpha": 0.05
 }

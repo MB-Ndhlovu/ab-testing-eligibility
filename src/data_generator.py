@@ -1,76 +1,74 @@
-"""Generate synthetic loan applicant data for A/B test."""
+"""Generate synthetic credit eligibility data for A/B testing."""
 
 import numpy as np
-
-np.random.seed(42)
-
-N_PER_GROUP = 2500
-
-GROUP_A_APPROVAL_TARGET = 0.62
-GROUP_A_DEFAULT_TARGET = 0.11
-GROUP_B_APPROVAL_TARGET = 0.71
-GROUP_B_DEFAULT_TARGET = 0.09
+from typing import Tuple
 
 
-def generate_group(n: int, approval_target: float, default_target: float, seed_offset: int = 0) -> dict:
-    """Generate loan applicant data for a group."""
-    rng = np.random.RandomState(42 + seed_offset)
+def generate_credit_data(n: int = 5000, group: str = "A", seed: int = 42) -> dict:
+    """
+    Generate synthetic credit eligibility data.
 
-    approved = rng.random(n) < approval_target
+    Args:
+        n: Number of applicants
+        group: 'A' (control) or 'B' (treatment)
+        seed: Random seed for reproducibility
 
-    loan_sizes = np.zeros(n)
-    for i in range(n):
-        bucket = rng.random()
-        if bucket < 0.5:
-            loan_sizes[i] = rng.uniform(5000, 20000)
-        elif bucket < 0.85:
-            loan_sizes[i] = rng.uniform(20000, 100000)
-        else:
-            loan_sizes[i] = rng.uniform(100000, 500000)
+    Returns:
+        Dictionary with keys: approved, defaulted, avg_loan_size, processing_time
+    """
+    np.random.seed(seed + (0 if group == "A" else 1))
 
-    defaulted = rng.random(n) < (default_target + rng.normal(0, 0.015))
-    defaulted = np.clip(defaulted, 0, 1)
+    if group == "A":
+        approval_prob = 0.62
+        default_given_approved_prob = 0.11
+        base_loan_size = 15000
+        base_processing_time = 4.5
+    else:
+        approval_prob = 0.71
+        default_given_approved_prob = 0.09
+        base_loan_size = 15500
+        base_processing_time = 3.8
 
-    processing_times = rng.exponential(2.5, n) + rng.uniform(0.5, 4, n)
+    approved_mask = np.random.random(n) < approval_prob
+
+    num_approved = approved_mask.sum()
+
+    defaulted = np.zeros(n, dtype=bool)
+    if num_approved > 0:
+        default_draw = np.random.random(num_approved)
+        defaulted[approved_mask] = default_draw < default_given_approved_prob
+
+    loan_sizes = np.where(
+        approved_mask,
+        np.random.lognormal(np.log(base_loan_size), 0.3, n),
+        0
+    )
+
+    processing_times = np.where(
+        approved_mask,
+        np.random.lognormal(np.log(base_processing_time), 0.25, n),
+        0
+    )
 
     return {
-        'approved': approved,
-        'loan_size': loan_sizes,
-        'defaulted': defaulted,
-        'processing_time': processing_times
+        "n": n,
+        "approved": int(num_approved),
+        "defaulted": int(defaulted.sum()),
+        "avg_loan_size": float(loan_sizes[approved_mask].mean()) if num_approved > 0 else 0.0,
+        "processing_time": float(processing_times[approved_mask].mean()) if num_approved > 0 else 0.0,
+        "approval_rate": num_approved / n,
+        "default_rate": defaulted.sum() / num_approved if num_approved > 0 else 0.0,
     }
 
 
-def compute_metrics(data: dict) -> dict:
-    """Compute aggregate metrics from group data."""
-    approved_mask = data['approved']
-    n_total = len(data['approved'])
-    n_approved = int(approved_mask.sum())
-
-    default_rate = float(data['defaulted'][approved_mask].mean()) if n_approved > 0 else 0.0
-    avg_loan = float(data['loan_size'][approved_mask].mean()) if n_approved > 0 else 0.0
-
+def compute_group_metrics(data: dict) -> dict:
+    """Compute summary metrics from generated data."""
     return {
-        'n': n_total,
-        'approval_rate': float(approved_mask.mean()),
-        'default_rate': default_rate,
-        'avg_loan_size': avg_loan,
-        'avg_processing_time': float(data['processing_time'].mean())
+        "n": data["n"],
+        "approvals": data["approved"],
+        "approval_rate": data["approval_rate"],
+        "defaults": data["defaulted"],
+        "default_rate": data["default_rate"],
+        "avg_loan_size": data["avg_loan_size"],
+        "avg_processing_time": data["processing_time"],
     }
-
-
-def generate_all_data():
-    """Generate both groups and return metrics."""
-    group_a_data = generate_group(N_PER_GROUP, GROUP_A_APPROVAL_TARGET, GROUP_A_DEFAULT_TARGET, seed_offset=0)
-    group_b_data = generate_group(N_PER_GROUP, GROUP_B_APPROVAL_TARGET, GROUP_B_DEFAULT_TARGET, seed_offset=1)
-
-    metrics_a = compute_metrics(group_a_data)
-    metrics_b = compute_metrics(group_b_data)
-
-    return metrics_a, metrics_b
-
-
-if __name__ == '__main__':
-    ma, mb = generate_all_data()
-    print("Group A metrics:", ma)
-    print("Group B metrics:", mb)

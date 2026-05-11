@@ -1,123 +1,97 @@
-"""Generate human-readable summary report."""
+"""Generate readable summary reports for A/B test results."""
 
-import json
 from typing import Dict
 
 
-def format_result(result: Dict, metric_label: str) -> str:
-    """Format a single test result nicely."""
-    sig = "✓ SIGNIFICANT" if result['significant'] else "✗ NOT SIGNIFICANT"
-    return f"""
-  {metric_label}
-  ─────────────────────────────────────────
-  Group A (Control):     {result['group_a_value']:.4f}
-  Group B (Treatment):   {result['group_b_value']:.4f}
-  Treatment Effect:      {result['treatment_effect']:+.4f}
-  z-statistic:           {result['z_statistic']:.4f}
-  p-value:              {result['p_value']:.6f}
-  95% Confidence Interval: [{result['ci_95'][0]:.4f}, {result['ci_95'][1]:.4f}]
-  Statistical Decision (α=0.05): {sig}
-"""
+def format_pct(value: float, decimals: int = 2) -> str:
+    """Format a decimal as percentage string."""
+    return f"{value * 100:.{decimals}f}%"
 
 
 def generate_report(results: Dict) -> str:
-    """Build full report from experiment results."""
+    """Generate a human-readable summary report."""
+    ga = results["group_a"]
+    gb = results["group_b"]
+    at = results["approval_test"]
+    dt = results["default_test"]
 
-    ma = results['metrics_a']
-    mb = results['metrics_b']
-    ap = results['approval_rate_test']
-    dr = results['default_rate_test']
+    lines = []
+    lines.append("=" * 60)
+    lines.append("      A/B TESTING FRAMEWORK — CREDIT ELIGIBILITY")
+    lines.append("=" * 60)
+    lines.append("")
+    lines.append("EXECUTIVE SUMMARY")
+    lines.append("-" * 40)
 
-    report = """
-╔══════════════════════════════════════════════════════════════╗
-║        A/B TESTING FRAMEWORK — CREDIT ELIGIBILITY              ║
-║                        FINAL REPORT                           ║
-╚══════════════════════════════════════════════════════════════╝
+    approval_sig = "SIGNIFICANT" if at["significant"] else "NOT SIGNIFICANT"
+    default_sig = "SIGNIFICANT" if dt["significant"] else "NOT SIGNIFICANT"
 
-┌──────────────────────────────────────────────────────────────┐
-│  SAMPLE SIZES                                                │
-│  Control (Group A): 2,500 applicants                         │
-│  Treatment (Group B): 2,500 applicants                      │
-└──────────────────────────────────────────────────────────────┘
+    lines.append(f"Approval Rate Lift: {format_pct(at['diff'])} ({approval_sig})")
+    lines.append(f"Default Rate Change: {format_pct(dt['diff'])} ({default_sig})")
+    lines.append("")
 
-┌──────────────────────────────────────────────────────────────┐
-│  DESCRIPTIVE METRICS                                         │
-│                                                              │
-│  Metric                 Group A      Group B      Effect     │
-│  ─────────────────────────────────────────────────────────  │"""
+    lines.append("GROUP METRICS")
+    lines.append("-" * 40)
+    lines.append(f"{'Metric':<25} {'Group A (Control)':>18} {'Group B (Treatment)':>18}")
+    lines.append("-" * 40)
+    lines.append(f"{'Sample Size':<25} {ga['n']:>18} {gb['n']:>18}")
+    lines.append(f"{'Approvals':<25} {ga['approvals']:>18} {gb['approvals']:>18}")
+    lines.append(f"{'Approval Rate':<25} {format_pct(ga['approval_rate']):>18} {format_pct(gb['approval_rate']):>18}")
+    lines.append(f"{'Defaults':<25} {ga['defaults']:>18} {gb['defaults']:>18}")
+    lines.append(f"{'Default Rate':<25} {format_pct(ga['default_rate']):>18} {format_pct(gb['default_rate']):>18}")
+    lines.append(f"{'Avg Loan Size':<25} {'${:,.2f}'.format(ga['avg_loan_size']):>18} {'${:,.2f}'.format(gb['avg_loan_size']):>18}")
+    lines.append(f"{'Avg Processing Time':<25} {ga['avg_processing_time']:.2f} days{'':>9} {gb['avg_processing_time']:.2f} days{'':>9}")
+    lines.append("")
 
-    for key in ['approval_rate', 'default_rate', 'avg_loan_size', 'avg_processing_time']:
-        v1 = ma[key]
-        v2 = mb[key]
-        eff = v2 - v1
-        report += f"\n│  {key:<20} {v1:>9.4f}   {v2:>9.4f}   {eff:>+8.4f}   │"
+    lines.append("APPROVAL RATE — TWO-PROPORTION Z-TEST")
+    lines.append("-" * 40)
+    lines.append(f"  Control rate (p1):     {format_pct(at['p1'])}")
+    lines.append(f"  Treatment rate (p2):    {format_pct(at['p2'])}")
+    lines.append(f"  Difference (p2 - p1):  {format_pct(at['diff'])}")
+    lines.append(f"  95% CI:                [{format_pct(at['ci_lower'])}, {format_pct(at['ci_upper'])}]")
+    lines.append(f"  Z-statistic:           {at['z_statistic']:.4f}")
+    lines.append(f"  P-value:               {at['p_value']:.6f}")
+    lines.append(f"  Result:                {'REJECT H0 — Significant difference' if at['significant'] else 'FAIL TO REJECT H0 — No significant difference'}")
+    lines.append("")
 
-    report += f"""
-└──────────────────────────────────────────────────────────────┘
+    lines.append("DEFAULT RATE — TWO-PROPORTION Z-TEST")
+    lines.append("-" * 40)
+    lines.append(f"  Control rate (p1):     {format_pct(dt['p1'])}")
+    lines.append(f"  Treatment rate (p2):    {format_pct(dt['p2'])}")
+    lines.append(f"  Difference (p2 - p1):  {format_pct(dt['diff'])}")
+    lines.append(f"  95% CI:                [{format_pct(dt['ci_lower'])}, {format_pct(dt['ci_upper'])}]")
+    lines.append(f"  Z-statistic:           {dt['z_statistic']:.4f}")
+    lines.append(f"  P-value:               {dt['p_value']:.6f}")
+    lines.append(f"  Result:                {'REJECT H0 — Significant difference' if dt['significant'] else 'FAIL TO REJECT H0 — No significant difference'}")
+    lines.append("")
 
-┌──────────────────────────────────────────────────────────────┐
-│  APPROVAL RATE TEST                                          │
-│  H₀: No difference in approval rates between groups          │"""
+    lines.append("POWER ANALYSIS")
+    lines.append("-" * 40)
+    lines.append(f"  Approval test power:  {results['power']['approval']:.1%}")
+    lines.append(f"  Default test power:   {results['power']['default']:.1%}")
+    lines.append(f"  Min detectable effect (approval): {format_pct(results['mde']['approval'])}")
+    lines.append(f"  Min detectable effect (default):  {format_pct(results['mde']['default'])}")
+    lines.append("")
 
-    report += format_result(ap, "")
-    report += f"""
-└──────────────────────────────────────────────────────────────┘
-
-┌──────────────────────────────────────────────────────────────┐
-│  DEFAULT RATE TEST                                           │
-│  H₀: No difference in default rates between groups          │"""
-    report += format_result(dr, "")
-    report += """
-└──────────────────────────────────────────────────────────────┘
-
-┌──────────────────────────────────────────────────────────────┐
-│  SUMMARY & RECOMMENDATION                                    │
-│                                                              │"""
-
-    both_sig = ap['significant'] and dr['significant']
-    if both_sig:
-        recommendation = (
-            "  The new credit eligibility model (B) is recommended.\n"
-            "  It shows a statistically significant increase in approval rate\n"
-            "  and a statistically significant decrease in default rate.\n"
-            "  Both primary metrics moved in the favorable direction."
-        )
-    elif ap['significant'] and not dr['significant']:
-        recommendation = (
-            "  Mixed results: approval rate improved significantly but\n"
-            "  default rate change is not statistically significant.\n"
-            "  Further analysis recommended before full deployment."
-        )
-    elif not ap['significant'] and dr['significant']:
-        recommendation = (
-            "  Mixed results: default rate improved significantly but\n"
-            "  approval rate change is not statistically significant.\n"
-            "  Further analysis recommended before full deployment."
-        )
+    lines.append("CONCLUSION")
+    lines.append("-" * 40)
+    if at["significant"] and dt["significant"]:
+        lines.append("  Both metrics show statistically significant improvement.")
+        lines.append("  The new model (Group B) increases approval rate AND decreases")
+        lines.append("  default rate. RECOMMEND adopting the new model.")
+    elif at["significant"]:
+        lines.append("  Only approval rate shows significant improvement.")
+        lines.append("  Default rate change is not statistically significant.")
+        lines.append("  Consider further testing before full deployment.")
+    elif dt["significant"]:
+        lines.append("  Only default rate shows significant improvement.")
+        lines.append("  Approval rate change is not statistically significant.")
+        lines.append("  Review if higher approvals are desired.")
     else:
-        recommendation = (
-            "  Neither metric showed a statistically significant difference\n"
-            "  at α=0.05. The new model does not demonstrate sufficient\n"
-            "  improvement over the current model to justify adoption."
-        )
+        lines.append("  Neither metric shows statistically significant improvement.")
+        lines.append("  The new model does not demonstrate clear advantage.")
+        lines.append("  Recommend additional testing or model refinement.")
+    lines.append("")
+    lines.append("=" * 60)
 
-    report += recommendation
-    report += """
-└──────────────────────────────────────────────────────────────┘
-"""
-
-    return report
-
-
-def save_results_json(results: Dict, filepath: str = 'results.json'):
-    """Save results dict to JSON file."""
-    with open(filepath, 'w') as f:
-        json.dump(results, f, indent=2, default=str)
-    print(f"\n[OUTPUT] Results saved to {filepath}")
-
-
-if __name__ == '__main__':
-    from src.simulate import run_experiment
-    results = run_experiment()
-    report = generate_report(results)
-    print(report)
+    return "\n".join(lines)

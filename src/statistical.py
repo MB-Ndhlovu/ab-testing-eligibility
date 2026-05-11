@@ -1,102 +1,109 @@
-"""Statistical analysis for two-proportion z-tests."""
+"""Statistical analysis for A/B testing."""
 
 import numpy as np
 from scipy import stats
-from typing import Dict, Tuple
+from typing import Tuple
 
 
-def two_proportion_ztest(n1: int, p1: float, n2: int, p2: float) -> Dict:
+def two_proportion_z_test(
+    x1: int, n1: int, x2: int, n2: int
+) -> dict:
     """
-    Perform two-proportion z-test.
+    Two-proportion z-test for comparing success rates.
 
     Args:
-        n1: Sample size group 1
-        p1: Proportion in group 1
-        n2: Sample size group 2
-        p2: Proportion in group 2
+        x1: Number of successes in group 1 (control)
+        n1: Total sample size group 1
+        x2: Number of successes in group 2 (treatment)
+        n2: Total sample size group 2
 
     Returns:
-        Dict with z-statistic, p-value, confidence interval, significance
+        Dictionary with z_statistic, p_value, ci_lower, ci_upper
     """
-    p_pool = (n1 * p1 + n2 * p2) / (n1 + n2)
-    se = np.sqrt(p_pool * (1 - p_pool) * (1/n1 + 1/n2))
+    p1 = x1 / n1
+    p2 = x2 / n2
+    p_diff = p2 - p1
+
+    p_pooled = (x1 + x2) / (n1 + n2)
+    se = np.sqrt(p_pooled * (1 - p_pooled) * (1/n1 + 1/n2))
 
     if se == 0:
-        z_stat = 0.0
-    else:
-        z_stat = (p2 - p1) / se
+        return {
+            "z_statistic": 0.0,
+            "p_value": 1.0,
+            "diff": p_diff,
+            "ci_lower": 0.0,
+            "ci_upper": 0.0,
+            "significant": False,
+        }
 
+    z_stat = p_diff / se
     p_value = 2 * (1 - stats.norm.cdf(abs(z_stat)))
 
-    diff = p2 - p1
-    se_diff = np.sqrt((p1 * (1 - p1) / n1) + (p2 * (2 - p2) / n2))
-    ci_low = diff - 1.96 * se_diff
-    ci_high = diff + 1.96 * se_diff
-
-    alpha = 0.05
-    significant = p_value < alpha
+    se_unpooled = np.sqrt(p1 * (1 - p1) / n1 + p2 * (1 - p2) / n2)
+    ci_lower = p_diff - 1.96 * se_unpooled
+    ci_upper = p_diff + 1.96 * se_unpooled
 
     return {
-        'z_statistic': round(z_stat, 4),
-        'p_value': round(p_value, 6),
-        'ci_95': (round(ci_low, 6), round(ci_high, 6)),
-        'significant': significant,
-        'alpha': alpha
+        "z_statistic": float(z_stat),
+        "p_value": float(p_value),
+        "diff": float(p_diff),
+        "ci_lower": float(ci_lower),
+        "ci_upper": float(ci_upper),
+        "significant": p_value < 0.05,
+        "p1": float(p1),
+        "p2": float(p2),
     }
 
 
-def power_analysis(p1: float, p2: float, alpha: float = 0.05, power: float = 0.80) -> Dict:
+def statistical_power(
+    n1: int, n2: int, p1: float, p2: float, alpha: float = 0.05
+) -> float:
     """
-    Compute minimum sample size and minimum detectable effect.
+    Calculate statistical power for two-proportion test.
 
     Args:
-        p1: Baseline proportion
-        p2: Target proportion
+        n1: Sample size group 1
+        n2: Sample size group 2
+        p1: Proportion group 1
+        p2: Proportion group 2
         alpha: Significance level
-        power: Desired statistical power
 
     Returns:
-        Dict with min_sample_size and min_detectable_effect
+        Power (probability of detecting true effect)
+    """
+    p_pooled = (p1 + p2) / 2
+    se_null = np.sqrt(p_pooled * (1 - p_pooled) * (1/n1 + 1/n2))
+    se_alt = np.sqrt(p1 * (1 - p1) / n1 + p2 * (1 - p2) / n2)
+
+    z_crit = stats.norm.ppf(1 - alpha / 2)
+    z_diff = abs(p2 - p1) / se_alt
+
+    power = stats.norm.cdf(z_diff - z_crit) + stats.norm.cdf(-z_diff - z_crit)
+    return float(power)
+
+
+def minimum_detectable_effect(
+    n1: int, n2: int, power: float = 0.8, alpha: float = 0.05, p1: float = 0.5
+) -> float:
+    """
+    Calculate minimum detectable effect (MDE) for two-proportion test.
+
+    Args:
+        n1: Sample size group 1
+        n2: Sample size group 2
+        power: Desired statistical power
+        alpha: Significance level
+        p1: Baseline proportion
+
+    Returns:
+        Minimum detectable absolute difference
     """
     z_alpha = stats.norm.ppf(1 - alpha / 2)
     z_beta = stats.norm.ppf(power)
 
-    p_avg = (p1 + p2) / 2
-    mde = (z_alpha + z_beta) * np.sqrt(2 * p_avg * (1 - p_avg))
+    se_null = np.sqrt(2 * p1 * (1 - p1) / ((n1 + n2) / 2))
+    se_alt = np.sqrt(p1 * (1 - p1) / n1 + p1 * (1 - p1) / n2)
 
-    min_n = 2 * ((z_alpha + z_beta) ** 2 * p_avg * (1 - p_avg)) / ((p2 - p1) ** 2)
-
-    return {
-        'min_sample_size_per_group': int(np.ceil(min_n)),
-        'min_detectable_effect': round(abs(p2 - p1), 4)
-    }
-
-
-def analyze_metric(metric_a: dict, metric_b: dict, metric_name: str) -> Dict:
-    """
-    Run full statistical analysis for a single metric across two groups.
-
-    Args:
-        metric_a: Metrics dict for group A
-        metric_b: Metrics dict for group B
-        metric_name: Name of the metric being analyzed
-
-    Returns:
-        Complete analysis results
-    """
-    p1 = metric_a[metric_name]
-    p2 = metric_b[metric_name]
-    n1 = metric_a['n']
-    n2 = metric_b['n']
-
-    test_result = two_proportion_ztest(n1, p1, n2, p2)
-    power_result = power_analysis(p1, p2)
-
-    return {
-        'metric': metric_name,
-        'group_a_value': round(p1, 6),
-        'group_b_value': round(p2, 6),
-        'treatment_effect': round(p2 - p1, 6),
-        **test_result,
-        'power_analysis': power_result
-    }
+    mde = (z_alpha + z_beta) * np.sqrt(p1 * (1 - p1) / n1 + p1 * (1 - p1) / n2)
+    return float(mde)

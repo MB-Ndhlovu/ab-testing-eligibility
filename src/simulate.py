@@ -1,58 +1,74 @@
-"""Run A/B experiment simulation."""
+"""Run A/B test experiment simulation."""
 
-from src.data_generator import generate_all_data
-from src.statistical import analyze_metric
+from src.data_generator import generate_credit_data, compute_group_metrics
+from src.statistical import two_proportion_z_test, statistical_power, minimum_detectable_effect
 
 
-def run_experiment():
-    """Execute full experiment: generate data, compute metrics, run statistics."""
+def run_simulation(n: int = 5000, seed: int = 42) -> dict:
+    """
+    Run the full A/B test experiment.
 
-    metrics_a, metrics_b = generate_all_data()
+    Args:
+        n: Sample size per group
+        seed: Random seed
 
-    print("=" * 60)
-    print("A/B TEST EXPERIMENT — CREDIT ELIGIBILITY")
-    print("=" * 60)
+    Returns:
+        Dictionary with all experiment results
+    """
+    group_a = generate_credit_data(n=n, group="A", seed=seed)
+    group_b = generate_credit_data(n=n, group="B", seed=seed)
 
-    print("\n[DATA GENERATION]")
-    print(f"  Group A (Control): n={metrics_a['n']}")
-    print(f"  Group B (Treatment): n={metrics_b['n']}")
+    metrics_a = compute_group_metrics(group_a)
+    metrics_b = compute_group_metrics(group_b)
 
-    print("\n[RAW METRICS]")
-    print(f"  {'Metric':<20} {'Group A':>12} {'Group B':>12} {'Effect':>12}")
-    print(f"  {'-'*20} {'-'*12} {'-'*12} {'-'*12}")
+    approval_test = two_proportion_z_test(
+        x1=metrics_a["approvals"],
+        n1=n,
+        x2=metrics_b["approvals"],
+        n2=n,
+    )
 
-    for key in ['approval_rate', 'default_rate', 'avg_loan_size', 'avg_processing_time']:
-        v1 = metrics_a[key]
-        v2 = metrics_b[key]
-        eff = v2 - v1
-        print(f"  {key:<20} {v1:>12.4f} {v2:>12.4f} {eff:>+12.4f}")
+    default_test = two_proportion_z_test(
+        x1=metrics_a["defaults"],
+        n1=metrics_a["approvals"],
+        x2=metrics_b["defaults"],
+        n2=metrics_b["approvals"],
+    )
 
-    print("\n[STATISTICAL ANALYSIS]")
-    results = {}
+    power_approval = statistical_power(
+        n1=n, n2=n, p1=metrics_a["approval_rate"], p2=metrics_b["approval_rate"]
+    )
+    power_default = statistical_power(
+        n1=metrics_a["approvals"],
+        n2=metrics_b["approvals"],
+        p1=metrics_a["default_rate"],
+        p2=metrics_b["default_rate"],
+    )
 
-    for metric in ['approval_rate', 'default_rate']:
-        result = analyze_metric(metrics_a, metrics_b, metric)
-        results[metric] = result
+    mde_approval = minimum_detectable_effect(
+        n1=n, n2=n, power=0.8, alpha=0.05, p1=metrics_a["approval_rate"]
+    )
+    mde_default = minimum_detectable_effect(
+        n1=metrics_a["approvals"],
+        n2=metrics_b["approvals"],
+        power=0.8,
+        alpha=0.05,
+        p1=metrics_a["default_rate"],
+    )
 
-        print(f"\n  --- {metric.upper()} ---")
-        print(f"  Group A: {result['group_a_value']:.4f}")
-        print(f"  Group B: {result['group_b_value']:.4f}")
-        print(f"  Treatment Effect: {result['treatment_effect']:+.4f}")
-        print(f"  z-statistic: {result['z_statistic']:.4f}")
-        print(f"  p-value: {result['p_value']:.6f}")
-        print(f"  95% CI: [{result['ci_95'][0]:.4f}, {result['ci_95'][1]:.4f}]")
-        sig_word = "SIGNIFICANT" if result['significant'] else "NOT SIGNIFICANT"
-        print(f"  Conclusion (α=0.05): {sig_word}")
-
-    summary = {
-        'metrics_a': metrics_a,
-        'metrics_b': metrics_b,
-        'approval_rate_test': results['approval_rate'],
-        'default_rate_test': results['default_rate']
+    return {
+        "group_a": metrics_a,
+        "group_b": metrics_b,
+        "approval_test": approval_test,
+        "default_test": default_test,
+        "power": {
+            "approval": power_approval,
+            "default": power_default,
+        },
+        "mde": {
+            "approval": mde_approval,
+            "default": mde_default,
+        },
+        "sample_size": n,
+        "alpha": 0.05,
     }
-
-    return summary
-
-
-if __name__ == '__main__':
-    results = run_experiment()

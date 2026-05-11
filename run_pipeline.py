@@ -1,53 +1,40 @@
-"""Execute full A/B test pipeline."""
+"""Execute the full A/B testing pipeline."""
 
 import json
-from src.simulate import run_experiment
-from src.report import generate_report, save_results_json
+import numpy as np
+from src.simulate import run_simulation
+from src.report import generate_report
+
+
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.bool_):
+            return bool(obj)
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super().default(obj)
 
 
 def main():
-    print("\nStarting A/B Testing Pipeline...\n")
+    print("Running A/B Test Simulation...")
+    print("")
 
-    results = run_experiment()
+    results = run_simulation(n=5000, seed=42)
+
     report = generate_report(results)
     print(report)
 
-    save_results_json(results, 'results.json')
+    with open("results.json", "w") as f:
+        json.dump(results, f, indent=2, cls=NumpyEncoder)
 
-    output_summary = {
-        'approval_rate': {
-            'group_a': results['metrics_a']['approval_rate'],
-            'group_b': results['metrics_b']['approval_rate'],
-            'effect': results['approval_rate_test']['treatment_effect'],
-            'p_value': results['approval_rate_test']['p_value'],
-            'significant': results['approval_rate_test']['significant']
-        },
-        'default_rate': {
-            'group_a': results['metrics_a']['default_rate'],
-            'group_b': results['metrics_b']['default_rate'],
-            'effect': results['default_rate_test']['treatment_effect'],
-            'p_value': results['default_rate_test']['p_value'],
-            'significant': results['default_rate_test']['significant']
-        }
-    }
+    print("Results saved to results.json")
 
-    print("\n" + "=" * 60)
-    print("PIPELINE COMPLETE")
-    print("=" * 60)
-    print(f"\nResults saved to results.json")
-    print(f"\nApproval Rate: A={output_summary['approval_rate']['group_a']:.4f}, "
-          f"B={output_summary['approval_rate']['group_b']:.4f}, "
-          f"effect={output_summary['approval_rate']['effect']:+.4f}, "
-          f"p={output_summary['approval_rate']['p_value']:.6f}, "
-          f"sig={output_summary['approval_rate']['significant']}")
-    print(f"Default Rate: A={output_summary['default_rate']['group_a']:.4f}, "
-          f"B={output_summary['default_rate']['group_b']:.4f}, "
-          f"effect={output_summary['default_rate']['effect']:+.4f}, "
-          f"p={output_summary['default_rate']['p_value']:.6f}, "
-          f"sig={output_summary['default_rate']['significant']}")
-
-    return output_summary
+    return results
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
