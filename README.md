@@ -1,34 +1,18 @@
 # A/B Testing Framework for Credit Eligibility
 
 ## Business Problem
-
-A lender wants to test whether a new credit eligibility model (Group B) performs better than the current model (Group A). The key metrics are:
-
-- **Approval Rate**: Higher is better (more loans approved)
-- **Default Rate**: Lower is better (fewer loans defaulting)
+A lender wants to test a new credit eligibility model against the current model. The goal is to determine whether the new model (Group B) improves approval rates and reduces default rates compared to the current model (Group A).
 
 ## Methodology
+- **Two-Proportion Z-Test**: Used to compare approval and default rates between control (A) and treatment (B) groups.
+- **95% Confidence Intervals**: Reported for the difference in proportions.
+- **Statistical Significance**: Tested at α = 0.05.
 
-We conduct a randomised A/B experiment:
+## Metrics
+1. **Approval Rate**: Higher is better for Group B.
+2. **Default Rate**: Lower is better for Group B.
 
-1. **Control (Group A)**: Current eligibility model
-2. **Treatment (Group B)**: New eligibility model
-
-Each applicant is randomly assigned to either group, and their outcome (approved/denied, defaulted/not defaulted) is simulated based on group-specific probabilities with realistic noise added.
-
-We use a **two-proportion z-test** to determine whether the observed differences are statistically significant at α = 0.05.
-
-## Metrics Analysed
-
-| Metric | Group A (Control) | Group B (Treatment) | Expected Direction |
-|---|---|---|---|
-| Approval Rate | ~62% | ~71% | B higher |
-| Default Rate | ~11% | ~9% | B lower |
-
-## Files
-
-- `src/data_generator.py` — Generates 5 000 synthetic loan applications
-- `src/statistical.py` — Two-proportion z-test, confidence intervals, power analysis
-- `src/simulate.py` — Runs the experiment and computes treatment effects
-- `src/report.py` — Produces a human-readable summary
-- `run_pipeline.py` — Orchestrates the full pipeline
+## Expected Outcomes
+- Group A (Control): ~62% approval, ~11% default
+- Group B (Treatment): ~71% approval, ~9% default
+- Realistic noise added to simulate real-world data imperfection.

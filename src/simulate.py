@@ -1,72 +1,35 @@
-"""
-Runs the A/B experiment simulation:
-  - Loads or generates data
-  - Computes per-group summary stats
-  - Runs two-proportion z-tests for approval_rate and default_rate
-  - Returns a results dictionary
-"""
+from src.data_generator import generate_credit_data, compute_group_metrics
+from src.statistical import two_proportion_z_test, confidence_interval, statistical_power
 
-import numpy as np
-import pandas as pd
-from src.statistical import two_proportion_ztest, compute_power, minimum_detectable_effect
+def run_simulation(seed=42):
+    df = generate_credit_data(n=5000, seed=seed)
+    metrics = compute_group_metrics(df)
 
-def run_experiment(df: pd.DataFrame) -> dict:
-    n_a = int((df["group"] == "A").sum())
-    n_b = int((df["group"] == "B").sum())
+    results = {}
+    for metric in ['approval_rate', 'default_rate']:
+        pA = metrics['A'][metric]
+        pB = metrics['B'][metric]
+        nA = metrics['A']['n']
+        nB = metrics['B']['n']
 
-    # Summary stats
-    grp_a = df[df["group"] == "A"]
-    grp_b = df[df["group"] == "B"]
+        z, p_val = two_proportion_z_test(nA, pA, nB, pB)
+        ci = confidence_interval(pA, pB, nA, nB)
+        power = statistical_power(pA, pB, min(nA, nB))
+        sig = p_val < 0.05
 
-    results = {
-        "group_a": {
-            "n": n_a,
-            "approval_rate": grp_a["approved"].mean(),
-            "default_rate":  grp_a["defaulted"].mean(),
-            "avg_loan_size": grp_a["loan_size"].mean(),
-            "avg_processing_time": grp_a["processing_time"].mean(),
-        },
-        "group_b": {
-            "n": n_b,
-            "approval_rate": grp_b["approved"].mean(),
-            "default_rate":  grp_b["defaulted"].mean(),
-            "avg_loan_size": grp_b["loan_size"].mean(),
-            "avg_processing_time": grp_b["processing_time"].mean(),
-        },
-    }
-
-    # Two-proportion z-tests
-    for metric, x_a_fn, x_b_fn in [
-        ("approval_rate",
-         lambda: int(grp_a["approved"].sum()),
-         lambda: int(grp_b["approved"].sum())),
-        ("default_rate",
-         lambda: int(grp_a["defaulted"].sum()),
-         lambda: int(grp_b["defaulted"].sum())),
-    ]:
-        x_a = x_a_fn()
-        x_b = x_b_fn()
-        alt = "larger" if metric == "approval_rate" else "smaller"
-        test = two_proportion_ztest(n_a, n_b, x_a, x_b, alternative=alt)
         results[metric] = {
-            "x_a": x_a, "x_b": x_b,
-            "rate_a": round(x_a / n_a, 4),
-            "rate_b": round(x_b / n_b, 4),
-            "z_statistic": test["z_statistic"],
-            "p_value": test["p_value"],
-            "ci_95": test["ci_95"],
-            "diff": test["diff"],
-            "significant": test["significant"],
+            'group_a': round(pA, 4),
+            'group_b': round(pB, 4),
+            'z_statistic': round(z, 4),
+            'p_value': round(p_val, 6),
+            'ci_lower': round(ci[0], 4),
+            'ci_upper': round(ci[1], 4),
+            'significant': sig,
+            'statistical_power': round(power, 4)
         }
 
-    # Power analysis (using observed proportions)
-    p_approval_a = results["group_a"]["approval_rate"]
-    p_approval_b = results["group_b"]["approval_rate"]
-    results["power_approval"] = compute_power(n_a, n_b, p_approval_a, p_approval_b)
-    p_default_a = results["group_a"]["default_rate"]
-    p_default_b = results["group_b"]["default_rate"]
-    results["power_default"] = compute_power(n_a, n_b, p_default_a, p_default_b)
-
-    results["mde"] = minimum_detectable_effect(n_a, n_b)
+    for group in ['A', 'B']:
+        results[f'{group.lower()}_avg_loan_size'] = round(metrics[group]['avg_loan_size'], 2)
+        results[f'{group.lower()}_avg_processing_time'] = round(metrics[group]['avg_processing_time'], 2)
 
     return results
