@@ -1,70 +1,78 @@
-"""Generate synthetic loan applicant data for A/B testing."""
+"""
+Generates 5 000 synthetic loan applications split into control (A) and treatment (B).
+Each row represents one loan application with:
+  - group: 'A' or 'B'
+  - approved: 0/1
+  - defaulted: 0/1
+  - loan_size: float (ZAR)
+  - processing_time: float (hours)
+"""
 
 import numpy as np
+import pandas as pd
 
-def generate_data(n=5000, seed=42):
-    """
-    Generate synthetic loan data for control (A) and treatment (B) groups.
+np.random.seed(42)
 
-    Parameters
-    ----------
-    n : int
-        Number of applicants per group (default 5000)
-    seed : int
-        Random seed for reproducibility
+N = 5000
+HALF = N // 2
 
-    Returns
-    -------
-    dict
-        Dictionary with 'group_a' and 'group_b' DataFrames containing:
-        - approved: bool
-        - defaulted: bool
-        - loan_size: float (in thousands ZAR)
-        - processing_time: float (in days)
-    """
-    np.random.seed(seed)
+# ── Group assignment ───────────────────────────────────────────────────────────
+group = np.array(["A"] * HALF + ["B"] * HALF)
 
-    # Group A (Control): approval_rate ~0.62, default_rate ~0.11
-    approved_a = np.random.random(n) < 0.62
-    # Among approved, default rate ~0.11
-    defaulted_a = approved_a & (np.random.random(n) < 0.11)
-    loan_size_a = np.random.lognormal(mean=4.2, sigma=0.7, size=n) * 1000  # avg ~50k ZAR
-    processing_time_a = np.random.exponential(scale=3.5, size=n) + 1  # avg ~4.5 days
+# ── Approval outcomes ──────────────────────────────────────────────────────────
+# Group A: ~62 %  |  Group B: ~71 %
+approved = np.where(
+    group == "A",
+    np.random.binomial(1, 0.62, N),
+    np.random.binomial(1, 0.71, N),
+)
 
-    # Group B (Treatment): approval_rate ~0.71, default_rate ~0.09
-    approved_b = np.random.random(n) < 0.71
-    defaulted_b = approved_b & (np.random.random(n) < 0.09)
-    loan_size_b = np.random.lognormal(mean=4.35, sigma=0.68, size=n) * 1000  # avg ~55k ZAR
-    processing_time_b = np.random.exponential(scale=3.0, size=n) + 1  # avg ~4 days
+# ── Default outcomes (only possible for approved loans) ───────────────────────
+defaulted = np.where(
+    approved == 1,
+    np.where(
+        group == "A",
+        np.random.binomial(1, 0.11, N),
+        np.random.binomial(1, 0.09, N),
+    ),
+    0,
+)
 
-    return {
-        'group_a': {
-            'approved': approved_a,
-            'defaulted': defaulted_a,
-            'loan_size': loan_size_a,
-            'processing_time': processing_time_a,
-        },
-        'group_b': {
-            'approved': approved_b,
-            'defaulted': defaulted_b,
-            'loan_size': loan_size_b,
-            'processing_time': processing_time_b,
+# ── Loan size (ZAR) ───────────────────────────────────────────────────────────
+base_size = np.random.uniform(10_000, 500_000, N)
+loan_size = np.round(base_size * (1 + np.random.uniform(-0.05, 0.05, N)), 2)
+
+# ── Processing time (hours) ───────────────────────────────────────────────────
+base_time = np.random.uniform(0.5, 8.0, N)
+processing_time = np.round(base_time * (1 + np.random.uniform(-0.1, 0.1, N)), 2)
+
+# ── Assemble DataFrame ─────────────────────────────────────────────────────────
+df = pd.DataFrame(
+    {"group": group, "approved": approved, "defaulted": defaulted,
+     "loan_size": loan_size, "processing_time": processing_time}
+)
+
+def get_summary_stats(df: pd.DataFrame) -> dict:
+    out = {}
+    for g in ("A", "B"):
+        sub = df[df["group"] == g]
+        n = len(sub)
+        out[g] = {
+            "n": n,
+            "approval_rate": sub["approved"].mean(),
+            "default_rate": sub["defaulted"].mean(),
+            "avg_loan_size": sub["loan_size"].mean(),
+            "avg_processing_time": sub["processing_time"].mean(),
         }
-    }
+    return out
 
-def compute_metrics(data):
-    """Compute summary metrics for each group."""
-    metrics = {}
-    for group_name, group_data in data.items():
-        approved = group_data['approved']
-        defaulted = group_data['defaulted']
-        n = len(approved)
-
-        metrics[group_name] = {
-            'n': n,
-            'approval_rate': approved.mean(),
-            'default_rate': defaulted.sum() / approved.sum() if approved.sum() > 0 else 0,
-            'avg_loan_size': group_data['loan_size'][approved].mean(),
-            'processing_time': group_data['processing_time'][approved].mean(),
-        }
-    return metrics
+if __name__ == "__main__":
+    df.to_csv("synthetic_data.csv", index=False)
+    stats = get_summary_stats(df)
+    print("=== Synthetic Data Summary ===")
+    for g, s in stats.items():
+        print(f"\nGroup {g} (n={s['n']}):")
+        print(f"  Approval rate    : {s['approval_rate']:.4f}")
+        print(f"  Default rate     : {s['default_rate']:.4f}")
+        print(f"  Avg loan size    : ZAR {s['avg_loan_size']:,.2f}")
+        print(f"  Avg process time  : {s['avg_processing_time']:.2f} hrs")

@@ -2,39 +2,33 @@
 
 ## Business Problem
 
-A lender wants to evaluate whether a new credit eligibility model (treatment group B) outperforms their current model (control group A). The key metrics are:
+A lender wants to test whether a new credit eligibility model (Group B) performs better than the current model (Group A). The key metrics are:
 
-- **Approval Rate**: Higher is better — more loans approved
-- **Default Rate**: Lower is better — fewer defaults
-- **Average Loan Size**: Informational metric
-- **Processing Time**: Informational metric
+- **Approval Rate**: Higher is better (more loans approved)
+- **Default Rate**: Lower is better (fewer loans defaulting)
 
 ## Methodology
 
-1. **Data Generation**: Simulate 5,000 loan applicants per group with realistic noise:
-   - Group A (Control): approval_rate ≈ 0.62, default_rate ≈ 0.11
-   - Group B (Treatment): approval_rate ≈ 0.71, default_rate ≈ 0.09
+We conduct a randomised A/B experiment:
 
-2. **Statistical Testing**: Two-proportion z-test for approval_rate and default_rate
-   - Null hypothesis: No difference between groups
-   - Report: z-statistic, p-value, 95% CI for difference, significance at α=0.05
+1. **Control (Group A)**: Current eligibility model
+2. **Treatment (Group B)**: New eligibility model
 
-3. **Power Analysis**: Calculate statistical power and minimum detectable effect (MDE)
+Each applicant is randomly assigned to either group, and their outcome (approved/denied, defaulted/not defaulted) is simulated based on group-specific probabilities with realistic noise added.
+
+We use a **two-proportion z-test** to determine whether the observed differences are statistically significant at α = 0.05.
+
+## Metrics Analysed
+
+| Metric | Group A (Control) | Group B (Treatment) | Expected Direction |
+|---|---|---|---|
+| Approval Rate | ~62% | ~71% | B higher |
+| Default Rate | ~11% | ~9% | B lower |
 
 ## Files
 
-- `src/data_generator.py` — Generate synthetic loan data
-- `src/statistical.py` — Z-test, confidence intervals, power analysis
-- `src/simulate.py` — Run experiment simulation
-- `src/report.py` — Generate summary report
-- `run_pipeline.py` — Execute full pipeline
-
-## Interpretation
-
-| Metric | Significance | Implication |
-|--------|-------------|-------------|
-| p < 0.05 | Statistically significant | Reject null; new model is different |
-| p ≥ 0.05 | Not significant | Insufficient evidence to reject null |
-
-For approval_rate: significant positive difference → new model approves more
-For default_rate: significant negative difference → new model defaults less
+- `src/data_generator.py` — Generates 5 000 synthetic loan applications
+- `src/statistical.py` — Two-proportion z-test, confidence intervals, power analysis
+- `src/simulate.py` — Runs the experiment and computes treatment effects
+- `src/report.py` — Produces a human-readable summary
+- `run_pipeline.py` — Orchestrates the full pipeline

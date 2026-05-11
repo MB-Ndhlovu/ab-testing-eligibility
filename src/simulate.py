@@ -1,76 +1,72 @@
-"""Run A/B test experiment simulation."""
+"""
+Runs the A/B experiment simulation:
+  - Loads or generates data
+  - Computes per-group summary stats
+  - Runs two-proportion z-tests for approval_rate and default_rate
+  - Returns a results dictionary
+"""
 
 import numpy as np
-from .data_generator import generate_data, compute_metrics
-from .statistical import two_proportion_ztest, statistical_power, minimum_detectable_effect, test_significance
+import pandas as pd
+from src.statistical import two_proportion_ztest, compute_power, minimum_detectable_effect
 
-def run_experiment(n=5000, seed=42):
-    """
-    Run the full A/B test experiment.
+def run_experiment(df: pd.DataFrame) -> dict:
+    n_a = int((df["group"] == "A").sum())
+    n_b = int((df["group"] == "B").sum())
 
-    Parameters
-    ----------
-    n : int
-        Sample size per group
-    seed : int
-        Random seed
+    # Summary stats
+    grp_a = df[df["group"] == "A"]
+    grp_b = df[df["group"] == "B"]
 
-    Returns
-    -------
-    dict
-        Complete experiment results
-    """
-    # Generate data
-    data = generate_data(n=n, seed=seed)
-
-    # Compute metrics
-    metrics = compute_metrics(data)
-
-    n_a = metrics['group_a']['n']
-    n_b = metrics['group_b']['n']
-
-    # Get proportions for statistical tests
-    p_approval_a = metrics['group_a']['approval_rate']
-    p_approval_b = metrics['group_b']['approval_rate']
-
-    # Default rate is among approved applications
-    p_default_a = metrics['group_a']['default_rate']
-    p_default_b = metrics['group_b']['default_rate']
-
-    # Run z-tests
-    approval_test = two_proportion_ztest(n_a, p_approval_a, n_b, p_approval_b)
-    approval_test['significance'] = test_significance(approval_test['p_value'])
-
-    default_test = two_proportion_ztest(n_a, p_default_a, n_b, p_default_b)
-    default_test['significance'] = test_significance(default_test['p_value'])
-
-    # Power analysis
-    # Expected based on true parameters
-    expected_power_approval = statistical_power(n, 0.62, 0.71)
-    mde_approval = minimum_detectable_effect(n, power=0.8, p1=0.62)
-
-    expected_power_default = statistical_power(n, 0.11, 0.09)
-    mde_default = minimum_detectable_effect(n, power=0.8, p1=0.11)
-
-    return {
-        'n_per_group': n,
-        'metrics': metrics,
-        'approval_test': {
-            **approval_test,
-            'p1': p_approval_a,
-            'p2': p_approval_b,
-            'effect': p_approval_b - p_approval_a,
-            'mde': mde_approval,
-            'expected_power': expected_power_approval,
+    results = {
+        "group_a": {
+            "n": n_a,
+            "approval_rate": grp_a["approved"].mean(),
+            "default_rate":  grp_a["defaulted"].mean(),
+            "avg_loan_size": grp_a["loan_size"].mean(),
+            "avg_processing_time": grp_a["processing_time"].mean(),
         },
-        'default_test': {
-            **default_test,
-            'p1': p_default_a,
-            'p2': p_default_b,
-            'effect': p_default_b - p_default_a,
-            'mde': mde_default,
-            'expected_power': expected_power_default,
+        "group_b": {
+            "n": n_b,
+            "approval_rate": grp_b["approved"].mean(),
+            "default_rate":  grp_b["defaulted"].mean(),
+            "avg_loan_size": grp_b["loan_size"].mean(),
+            "avg_processing_time": grp_b["processing_time"].mean(),
         },
-        'observed_power_approval': statistical_power(n, p_approval_a, p_approval_b),
-        'observed_power_default': statistical_power(n, p_default_a, p_default_b),
     }
+
+    # Two-proportion z-tests
+    for metric, x_a_fn, x_b_fn in [
+        ("approval_rate",
+         lambda: int(grp_a["approved"].sum()),
+         lambda: int(grp_b["approved"].sum())),
+        ("default_rate",
+         lambda: int(grp_a["defaulted"].sum()),
+         lambda: int(grp_b["defaulted"].sum())),
+    ]:
+        x_a = x_a_fn()
+        x_b = x_b_fn()
+        alt = "larger" if metric == "approval_rate" else "smaller"
+        test = two_proportion_ztest(n_a, n_b, x_a, x_b, alternative=alt)
+        results[metric] = {
+            "x_a": x_a, "x_b": x_b,
+            "rate_a": round(x_a / n_a, 4),
+            "rate_b": round(x_b / n_b, 4),
+            "z_statistic": test["z_statistic"],
+            "p_value": test["p_value"],
+            "ci_95": test["ci_95"],
+            "diff": test["diff"],
+            "significant": test["significant"],
+        }
+
+    # Power analysis (using observed proportions)
+    p_approval_a = results["group_a"]["approval_rate"]
+    p_approval_b = results["group_b"]["approval_rate"]
+    results["power_approval"] = compute_power(n_a, n_b, p_approval_a, p_approval_b)
+    p_default_a = results["group_a"]["default_rate"]
+    p_default_b = results["group_b"]["default_rate"]
+    results["power_default"] = compute_power(n_a, n_b, p_default_a, p_default_b)
+
+    results["mde"] = minimum_detectable_effect(n_a, n_b)
+
+    return results
