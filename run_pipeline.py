@@ -1,32 +1,30 @@
 """Execute the full A/B testing pipeline."""
-import json
-import sys
-sys.path.insert(0, "/home/workspace/Projects/ab-testing-eligibility")
 
-from src.data_generator import group_a, group_b, summary_stats
+import json
 from src.simulate import run_experiment
-from src.report import generate_report
+from src.report import generate_report, results_to_json
 
 def main():
-    print("Generating synthetic data...")
-    from src import data_generator  # trigger side effects (seeded globals)
+    print("Running A/B Testing Pipeline...")
+    print("-" * 40)
 
-    print("Running experiment simulation...")
-    results = run_experiment()
+    # Run experiment
+    results = run_experiment(n=5000, seed=42)
 
-    print("Generating report...")
-    report_text, output_json = generate_report(results)
+    # Generate and print report
+    report = generate_report(results)
+    print(report)
 
-    # Print human-readable report
-    print(report_text)
+    # Save JSON results
+    output = results_to_json(results)
+    with open('results.json', 'w') as f:
+        json.dump(output, f, indent=2)
 
-    # Save JSON
-    out_path = "/home/workspace/Projects/ab-testing-eligibility/results.json"
-    with open(out_path, "w") as f:
-        json.dump(output_json, f, indent=2, default=float)
-    print(f"\n  Results saved to: {out_path}")
+    print("\n[OUTPUT]")
+    print("  Results saved to: results.json")
+    print("-" * 40)
 
-    return output_json
+    return results
 
-if __name__ == "__main__":
-    main()
+if __name__ == '__main__':
+    results = main()

@@ -1,65 +1,123 @@
-"""Statistical utilities for two-proportion z-tests."""
+"""Statistical tests for A/B testing."""
+
 import numpy as np
 from scipy import stats
 
-def two_proportion_ztest(n_success, n_total, alternative="two-sided"):
+def two_proportion_ztest(n1, p1, n2, p2):
     """
-    Two-proportion z-test using pooled SE (consistent with the test itself).
-    CI uses the same pooled SE for consistency between p-value and interval.
+    Two-proportion z-test for comparing two proportions.
 
     Parameters
     ----------
-    n_success : tuple (x1, x2) — number of successes in each group
-    n_total : tuple (n1, n2) — group sizes
-    alternative : str — 'two-sided', 'larger', 'smaller'
+    n1, n2 : int
+        Sample sizes for group 1 and group 2
+    p1, p2 : float
+        Observed proportions for group 1 and group 2
 
     Returns
     -------
-    dict with z_stat, p_value, ci_95 (tuple), significant (bool at alpha=0.05)
+    dict
+        Contains z_statistic, p_value, ci_lower, ci_upper (95% CI for difference)
     """
-    x1, x2 = n_success
-    n1, n2 = n_total
+    # Pooled proportion under null hypothesis
+    p_pooled = (n1 * p1 + n2 * p2) / (n1 + n2)
 
-    p1 = x1 / n1
-    p2 = x2 / n2
-    p_pool = (x1 + x2) / (n1 + n2)
+    # Standard error
+    se = np.sqrt(p_pooled * (1 - p_pooled) * (1/n1 + 1/n2))
 
-    # Pooled SE — used for both test and CI (matched for consistency)
-    se = np.sqrt(p_pool * (1 - p_pool) * (1 / n1 + 1 / n2))
-    if se == 0:
-        z_stat = 0.0
-    else:
-        z_stat = (p1 - p2) / se
+    # Z-statistic
+    z_stat = (p2 - p1) / se if se > 0 else 0
 
-    p_value = 2 * (1 - stats.norm.cdf(abs(z_stat)))  # two-sided
+    # Two-tailed p-value
+    p_value = 2 * (1 - stats.norm.cdf(abs(z_stat)))
 
-    # 95% CI using pooled SE (consistent with test)
-    ci_lower = (p1 - p2) - 1.96 * se
-    ci_upper = (p1 - p2) + 1.96 * se
+    # 95% CI for difference (using unpooled standard error)
+    se_diff = np.sqrt(p1 * (1 - p1) / n1 + p2 * (2 - p2) / n2)
+    ci_lower = (p2 - p1) - 1.96 * se_diff
+    ci_upper = (p2 - p1) + 1.96 * se_diff
 
     return {
-        "p1": p1,
-        "p2": p2,
-        "difference": p1 - p2,
-        "z_stat": z_stat,
-        "p_value": p_value,
-        "ci_95": (ci_lower, ci_upper),
-        "significant": p_value < 0.05,
+        'z_statistic': z_stat,
+        'p_value': p_value,
+        'ci_lower': ci_lower,
+        'ci_upper': ci_upper,
     }
 
-def power_analysis(p1, p2, n, alpha=0.05):
-    """Compute statistical power for a given sample size and proportions."""
-    p_pool = (p1 + p2) / 2
-    se = np.sqrt(p_pool * (1 - p_pool) * (2 / n))
-    z_crit = stats.norm.ppf(1 - alpha / 2)
-    z_ncp = abs(p1 - p2) / se
-    power = stats.norm.cdf(z_ncp - z_crit) + stats.norm.cdf(-z_ncp - z_crit)
-    return power
+def statistical_power(n, p1, p2, alpha=0.05):
+    """
+    Calculate statistical power for a two-proportion z-test.
 
-def min_detectable_effect(n, alpha=0.05, power=0.8):
-    """Minimum detectable effect (absolute) given sample size and power."""
+    Parameters
+    ----------
+    n : int
+        Sample size per group (assumes equal group sizes)
+    p1, p2 : float
+        Expected proportions
+    alpha : float
+        Significance level (default 0.05)
+
+    Returns
+    -------
+    float
+        Statistical power (probability of detecting true difference)
+    """
+    # Pooled proportion under null
+    p_pooled = (p1 + p2) / 2
+
+    # Standard error under null
+    se_null = np.sqrt(2 * p_pooled * (1 - p_pooled) / n)
+
+    # Critical value (z for alpha/2)
+    z_crit = stats.norm.ppf(1 - alpha / 2)
+
+    # Effect size
+    delta = abs(p2 - p1)
+
+    # Power = P(reject null | true effect = delta)
+    # This is P(|Z| > z_crit - delta/se_null)
+    se_alt = np.sqrt(p1 * (1 - p1) / n + p2 * (1 - p2) / n)
+    z_power = (delta / se_alt) - z_crit * (se_null / se_alt)
+
+    power = 1 - stats.norm.cdf(z_power) + stats.norm.cdf(-z_power - 2 * (delta / se_alt))
+    return max(0, min(1, power))
+
+def minimum_detectable_effect(n, power=0.8, alpha=0.05, p1=0.5):
+    """
+    Calculate minimum detectable effect (MDE) for a given power.
+
+    Parameters
+    ----------
+    n : int
+        Sample size per group
+    power : float
+        Desired statistical power (default 0.8)
+    alpha : float
+        Significance level (default 0.05)
+    p1 : float
+        Baseline proportion (default 0.5)
+
+    Returns
+    -------
+    float
+        Minimum detectable effect (absolute difference in proportions)
+    """
     z_crit = stats.norm.ppf(1 - alpha / 2)
     z_power = stats.norm.ppf(power)
-    p_pool = 0.5  # conservative; solve for MDE iteratively in practice
-    mde = (z_crit + z_power) * np.sqrt(2 * p_pool * (1 - p_pool) / n)
-    return mde
+
+    # MDE formula for two-proportion test
+    p2 = np.linspace(0.01, 0.99, 1000)
+    delta = np.abs(p2 - p1)
+    se_pooled = np.sqrt(2 * ((p1 + p2) / 2) * (1 - (p1 + p2) / 2) / n)
+
+    # Power calculation
+    z_effect = (delta / se_pooled) - z_crit
+    power_vals = stats.norm.cdf(z_effect)
+
+    idx = np.argmin(np.abs(power_vals - power))
+    return delta[idx]
+
+def test_significance(p_value, alpha=0.05):
+    """Return significance conclusion."""
+    if p_value < alpha:
+        return "SIGNIFICANT"
+    return "NOT SIGNIFICANT"
