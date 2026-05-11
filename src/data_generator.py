@@ -1,47 +1,76 @@
+"""Generate synthetic loan applicant data for A/B test."""
+
 import numpy as np
-import pandas as pd
 
-def generate_credit_data(n=5000, seed=42):
-    np.random.seed(seed)
-    data = []
+np.random.seed(42)
 
-    for group in ['A', 'B']:
-        for i in range(n):
-            if group == 'A':
-                approved = np.random.random() < 0.62
-                defaulted = np.random.random() < 0.11 if approved else False
-                loan_size = np.random.lognormal(9.5, 0.8) if approved else 0
-                processing_time = np.random.normal(5.2, 1.5)
-            else:
-                approved = np.random.random() < 0.71
-                defaulted = np.random.random() < 0.09 if approved else False
-                loan_size = np.random.lognormal(9.7, 0.75) if approved else 0
-                processing_time = np.random.normal(4.8, 1.4)
+N_PER_GROUP = 2500
 
-            data.append({
-                'group': group,
-                'approved': int(approved),
-                'defaulted': int(defaulted),
-                'loan_size': round(loan_size, 2),
-                'processing_time': round(max(0.5, processing_time), 2)
-            })
+GROUP_A_APPROVAL_TARGET = 0.62
+GROUP_A_DEFAULT_TARGET = 0.11
+GROUP_B_APPROVAL_TARGET = 0.71
+GROUP_B_DEFAULT_TARGET = 0.09
 
-    return pd.DataFrame(data)
 
-def compute_group_metrics(df):
-    metrics = {}
-    for group in ['A', 'B']:
-        g = df[df['group'] == group]
-        n = len(g)
-        approved = g['approved'].sum()
-        defaulted = g['defaulted'].sum()
-        approved_with_loan = g[g['approved'] == 1]
-        
-        metrics[group] = {
-            'n': n,
-            'approval_rate': approved / n,
-            'default_rate': defaulted / n,
-            'avg_loan_size': approved_with_loan['loan_size'].mean() if len(approved_with_loan) > 0 else 0,
-            'avg_processing_time': g['processing_time'].mean()
-        }
-    return metrics
+def generate_group(n: int, approval_target: float, default_target: float, seed_offset: int = 0) -> dict:
+    """Generate loan applicant data for a group."""
+    rng = np.random.RandomState(42 + seed_offset)
+
+    approved = rng.random(n) < approval_target
+
+    loan_sizes = np.zeros(n)
+    for i in range(n):
+        bucket = rng.random()
+        if bucket < 0.5:
+            loan_sizes[i] = rng.uniform(5000, 20000)
+        elif bucket < 0.85:
+            loan_sizes[i] = rng.uniform(20000, 100000)
+        else:
+            loan_sizes[i] = rng.uniform(100000, 500000)
+
+    defaulted = rng.random(n) < (default_target + rng.normal(0, 0.015))
+    defaulted = np.clip(defaulted, 0, 1)
+
+    processing_times = rng.exponential(2.5, n) + rng.uniform(0.5, 4, n)
+
+    return {
+        'approved': approved,
+        'loan_size': loan_sizes,
+        'defaulted': defaulted,
+        'processing_time': processing_times
+    }
+
+
+def compute_metrics(data: dict) -> dict:
+    """Compute aggregate metrics from group data."""
+    approved_mask = data['approved']
+    n_total = len(data['approved'])
+    n_approved = int(approved_mask.sum())
+
+    default_rate = float(data['defaulted'][approved_mask].mean()) if n_approved > 0 else 0.0
+    avg_loan = float(data['loan_size'][approved_mask].mean()) if n_approved > 0 else 0.0
+
+    return {
+        'n': n_total,
+        'approval_rate': float(approved_mask.mean()),
+        'default_rate': default_rate,
+        'avg_loan_size': avg_loan,
+        'avg_processing_time': float(data['processing_time'].mean())
+    }
+
+
+def generate_all_data():
+    """Generate both groups and return metrics."""
+    group_a_data = generate_group(N_PER_GROUP, GROUP_A_APPROVAL_TARGET, GROUP_A_DEFAULT_TARGET, seed_offset=0)
+    group_b_data = generate_group(N_PER_GROUP, GROUP_B_APPROVAL_TARGET, GROUP_B_DEFAULT_TARGET, seed_offset=1)
+
+    metrics_a = compute_metrics(group_a_data)
+    metrics_b = compute_metrics(group_b_data)
+
+    return metrics_a, metrics_b
+
+
+if __name__ == '__main__':
+    ma, mb = generate_all_data()
+    print("Group A metrics:", ma)
+    print("Group B metrics:", mb)

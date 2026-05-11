@@ -1,35 +1,58 @@
-from src.data_generator import generate_credit_data, compute_group_metrics
-from src.statistical import two_proportion_z_test, confidence_interval, statistical_power
+"""Run A/B experiment simulation."""
 
-def run_simulation(seed=42):
-    df = generate_credit_data(n=5000, seed=seed)
-    metrics = compute_group_metrics(df)
+from src.data_generator import generate_all_data
+from src.statistical import analyze_metric
 
+
+def run_experiment():
+    """Execute full experiment: generate data, compute metrics, run statistics."""
+
+    metrics_a, metrics_b = generate_all_data()
+
+    print("=" * 60)
+    print("A/B TEST EXPERIMENT — CREDIT ELIGIBILITY")
+    print("=" * 60)
+
+    print("\n[DATA GENERATION]")
+    print(f"  Group A (Control): n={metrics_a['n']}")
+    print(f"  Group B (Treatment): n={metrics_b['n']}")
+
+    print("\n[RAW METRICS]")
+    print(f"  {'Metric':<20} {'Group A':>12} {'Group B':>12} {'Effect':>12}")
+    print(f"  {'-'*20} {'-'*12} {'-'*12} {'-'*12}")
+
+    for key in ['approval_rate', 'default_rate', 'avg_loan_size', 'avg_processing_time']:
+        v1 = metrics_a[key]
+        v2 = metrics_b[key]
+        eff = v2 - v1
+        print(f"  {key:<20} {v1:>12.4f} {v2:>12.4f} {eff:>+12.4f}")
+
+    print("\n[STATISTICAL ANALYSIS]")
     results = {}
+
     for metric in ['approval_rate', 'default_rate']:
-        pA = metrics['A'][metric]
-        pB = metrics['B'][metric]
-        nA = metrics['A']['n']
-        nB = metrics['B']['n']
+        result = analyze_metric(metrics_a, metrics_b, metric)
+        results[metric] = result
 
-        z, p_val = two_proportion_z_test(nA, pA, nB, pB)
-        ci = confidence_interval(pA, pB, nA, nB)
-        power = statistical_power(pA, pB, min(nA, nB))
-        sig = p_val < 0.05
+        print(f"\n  --- {metric.upper()} ---")
+        print(f"  Group A: {result['group_a_value']:.4f}")
+        print(f"  Group B: {result['group_b_value']:.4f}")
+        print(f"  Treatment Effect: {result['treatment_effect']:+.4f}")
+        print(f"  z-statistic: {result['z_statistic']:.4f}")
+        print(f"  p-value: {result['p_value']:.6f}")
+        print(f"  95% CI: [{result['ci_95'][0]:.4f}, {result['ci_95'][1]:.4f}]")
+        sig_word = "SIGNIFICANT" if result['significant'] else "NOT SIGNIFICANT"
+        print(f"  Conclusion (α=0.05): {sig_word}")
 
-        results[metric] = {
-            'group_a': round(pA, 4),
-            'group_b': round(pB, 4),
-            'z_statistic': round(z, 4),
-            'p_value': round(p_val, 6),
-            'ci_lower': round(ci[0], 4),
-            'ci_upper': round(ci[1], 4),
-            'significant': sig,
-            'statistical_power': round(power, 4)
-        }
+    summary = {
+        'metrics_a': metrics_a,
+        'metrics_b': metrics_b,
+        'approval_rate_test': results['approval_rate'],
+        'default_rate_test': results['default_rate']
+    }
 
-    for group in ['A', 'B']:
-        results[f'{group.lower()}_avg_loan_size'] = round(metrics[group]['avg_loan_size'], 2)
-        results[f'{group.lower()}_avg_processing_time'] = round(metrics[group]['avg_processing_time'], 2)
+    return summary
 
-    return results
+
+if __name__ == '__main__':
+    results = run_experiment()
