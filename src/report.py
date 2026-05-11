@@ -1,51 +1,97 @@
-"""Generate readable summary report for A/B test results."""
-
+"""Generate a readable summary report."""
 import json
-from src.simulate import run_experiment
 
+def format_result(name, result, is_ztest=True):
+    lines = [f"\n{'='*60}"]
+    lines.append(f"  {name}")
+    lines.append('='*60)
 
-def generate_report(results, output_path="results.json"):
-    """Generate and print summary report."""
-    with open(output_path, "w") as f:
-        json.dump(results, f, indent=2)
-    
-    print("=" * 70)
-    print("A/B TESTING FRAMEWORK — CREDIT ELIGIBILITY")
-    print("=" * 70)
-    print()
-    
-    for metric, r in results.items():
-        print(f"[{metric.upper()}]")
-        print(f"  Group A rate : {r['rate_a']:.4f}")
-        print(f"  Group B rate : {r['rate_b']:.4f}")
-        print(f"  Effect (B-A) : {r['treatment_effect']:+.4f}")
-        print(f"  z-statistic  : {r['z_statistic']:.4f}")
-        print(f"  p-value      : {r['p_value']:.6f}")
-        print(f"  95% CI       : [{r['ci_95'][0]:+.4f}, {r['ci_95'][1]:+.4f}]")
-        print(f"  Significant  : {'YES' if r['significant'] else 'NO'} (α=0.05)")
-        print(f"  Beneficial   : {'YES' if r['beneficial'] else 'NO'}")
-        print()
-    
-    approval_sig = results["approval_rate"]["significant"]
-    default_sig = results["default_rate"]["significant"]
-    
-    approval_effect = results["approval_rate"]["treatment_effect"]
-    default_effect = results["default_rate"]["treatment_effect"]
-    
-    print("-" * 70)
-    print("CONCLUSION")
-    print("-" * 70)
-    
-    if approval_effect > 0 and not default_sig:
-        rec = "APPROVE — Higher approvals with no significant increase in defaults."
-    elif approval_effect > 0 and default_effect > 0 and not approval_sig:
-        rec = "REJECT — Default rate increased significantly."
-    elif approval_sig and default_sig and approval_effect > 0 and default_effect < 0:
-        rec = "APPROVE — Strong improvement on both metrics."
+    if is_ztest:
+        sig = "✅ SIGNIFICANT" if result["significant"] else "❌ NOT SIGNIFICANT"
+        lines.append(f"  Group A (Control):   {result['p1']:.4f} ({result['p1']*100:.2f}%)")
+        lines.append(f"  Group B (Treatment): {result['p2']:.4f} ({result['p2']*100:.2f}%)")
+        lines.append(f"  Difference (A - B):  {result['difference']:+.4f}")
+        lines.append(f"  95% CI:              [{result['ci_95'][0]:+.4f}, {result['ci_95'][1]:+.4f}]")
+        lines.append(f"  Z-statistic:         {result['z_stat']:.4f}")
+        lines.append(f"  P-value:             {result['p_value']:.6f}")
+        lines.append(f"  Conclusion (α=0.05):  {sig}")
     else:
-        rec = "REVIEW NEEDED — Results inconclusive, manual review recommended."
-    
-    print(f"  Recommendation: {rec}")
-    print("=" * 70)
-    
-    return results
+        lines.append(f"  T-statistic: {result.get('t_stat')}")
+        lines.append(f"  P-value:     {result.get('p_value'):.6f}")
+        sig = "✅ SIGNIFICANT" if result.get("p_value", 1) < 0.05 else "❌ NOT SIGNIFICANT"
+        lines.append(f"  Conclusion:  {sig}")
+
+    return "\n".join(lines)
+
+def generate_report(exp_results):
+    lines = [
+        "\n" + "="*60,
+        "       A/B TESTING FRAMEWORK — CREDIT ELIGIBILITY",
+        "="*60,
+        f"\n  Sample Sizes — Group A: {exp_results['n_a']}  |  Group B: {exp_results['n_b']}",
+    ]
+
+    lines.append(format_result("APPROVAL RATE", exp_results["approval_rate"]))
+    lines.append(format_result("DEFAULT RATE", exp_results["default_rate"]))
+    lines.append(format_result("AVG LOAN SIZE", exp_results["avg_loan_size"], is_ztest=False))
+    lines.append(format_result("PROCESSING TIME", exp_results["processing_time"], is_ztest=False))
+
+    # Summary verdict
+    # difference = p1 - p2  (positive = A higher, negative = B higher)
+    ar_diff = exp_results["approval_rate"]["difference"]
+    dr_diff = exp_results["default_rate"]["difference"]
+    ar_sig  = exp_results["approval_rate"]["significant"]
+    dr_sig  = exp_results["default_rate"]["significant"]
+
+    lines.append("\n" + "="*60)
+    lines.append("  SUMMARY VERDICT")
+    lines.append("="*60)
+
+    if ar_sig and ar_diff < 0:
+        lines.append("  ✅ Approval rate is SIGNIFICANTLY HIGHER with the new model.")
+    elif ar_sig and ar_diff > 0:
+        lines.append("  ⚠️  Approval rate is SIGNIFICANTLY LOWER with the new model.")
+    else:
+        lines.append("  ⚠️  No significant difference in approval rate.")
+
+    if dr_sig and dr_diff < 0:
+        lines.append("  ❌ Default rate is SIGNIFICANTLY HIGHER with the new model — WARNING.")
+    elif dr_sig and dr_diff > 0:
+        lines.append("  ✅ Default rate is SIGNIFICANTLY LOWER with the new model.")
+    else:
+        lines.append("  ⚠️  No significant difference in default rate.")
+
+    report_text = "\n".join(lines) + "\n"
+
+    output = {
+        "approval_rate": {
+            "group_a": float(exp_results["approval_rate"]["p1"]),
+            "group_b": float(exp_results["approval_rate"]["p2"]),
+            "difference": float(exp_results["approval_rate"]["difference"]),
+            "ci_95": [float(x) for x in exp_results["approval_rate"]["ci_95"]],
+            "z_stat": float(exp_results["approval_rate"]["z_stat"]),
+            "p_value": float(exp_results["approval_rate"]["p_value"]),
+            "significant": bool(exp_results["approval_rate"]["significant"]),
+        },
+        "default_rate": {
+            "group_a": float(exp_results["default_rate"]["p1"]),
+            "group_b": float(exp_results["default_rate"]["p2"]),
+            "difference": float(exp_results["default_rate"]["difference"]),
+            "ci_95": [float(x) for x in exp_results["default_rate"]["ci_95"]],
+            "z_stat": float(exp_results["default_rate"]["z_stat"]),
+            "p_value": float(exp_results["default_rate"]["p_value"]),
+            "significant": bool(exp_results["default_rate"]["significant"]),
+        },
+        "avg_loan_size": {
+            "t_stat": float(exp_results["avg_loan_size"]["t_stat"]),
+            "p_value": float(exp_results["avg_loan_size"]["p_value"]),
+        },
+        "processing_time": {
+            "t_stat": float(exp_results["processing_time"]["t_stat"]),
+            "p_value": float(exp_results["processing_time"]["p_value"]),
+        },
+        "n_a": int(exp_results["n_a"]),
+        "n_b": int(exp_results["n_b"]),
+    }
+
+    return report_text, output

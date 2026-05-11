@@ -1,65 +1,56 @@
-"""Run A/B experiment simulation and compute treatment effects."""
-
-import pandas as pd
+"""Run the A/B experiment simulation."""
 import numpy as np
-from src.statistical import two_proportion_ztest, confidence_interval
+from .data_generator import group_a, group_b
+from .statistical import two_proportion_ztest, power_analysis
 
-ALPHA = 0.05
+def run_experiment():
+    n_a = len(group_a["approved"])
+    n_b = len(group_b["approved"])
 
+    # --- Approval Rate ---
+    ar_a = group_a["approved"].sum()
+    ar_b = group_b["approved"].sum()
+    ar_test = two_proportion_ztest(
+        n_success=(ar_a, ar_b),
+        n_total=(n_a, n_b),
+    )
 
-def run_experiment(data_path="data.csv"):
-    """Run the A/B experiment analysis."""
-    df = pd.read_csv(data_path)
-    
-    df_a = df[df["group"] == "A"]
-    df_b = df[df["group"] == "B"]
-    
-    n_a = len(df_a)
-    n_b = len(df_b)
-    
-    approved_a = int(df_a["approved"].sum())
-    approved_b = int(df_b["approved"].sum())
-    defaulted_a = int(df_a["defaulted"].sum())
-    defaulted_b = int(df_b["defaulted"].sum())
-    
-    metrics = {
-        "approval_rate": {
-            "n_success": [approved_a, approved_b],
-            "n_total": [n_a, n_b],
-            "rate_a": df_a["approved"].mean(),
-            "rate_b": df_b["approved"].mean(),
-            "direction": "higher is better",
-        },
-        "default_rate": {
-            "n_success": [defaulted_a, defaulted_b],
-            "n_total": [n_a, n_b],
-            "rate_a": df_a["defaulted"].mean(),
-            "rate_b": df_b["defaulted"].mean(),
-            "direction": "lower is better",
-        },
+    # --- Default Rate ---
+    dr_a = group_a["defaulted"].sum()
+    dr_b = group_b["defaulted"].sum()
+    # Denominator: only approved applications
+    ar_a_int = int(ar_a)
+    ar_b_int = int(ar_b)
+    dr_test = two_proportion_ztest(
+        n_success=(dr_a, dr_b),
+        n_total=(ar_a_int, ar_b_int),
+    )
+
+    # --- Avg Loan Size ( Welch's t-test approximation) ---
+    loans_a = group_a["loan_size"][group_a["approved"] == 1]
+    loans_b = group_b["loan_size"][group_b["approved"] == 1]
+
+    t_stat, t_pval = None, None
+    if len(loans_a) > 1 and len(loans_b) > 1:
+        t_stat, t_pval = run_t_test(loans_a, loans_b)
+
+    # --- Processing Time ---
+    time_a = group_a["processing_time"]
+    time_b = group_b["processing_time"]
+    t_time_stat, t_time_pval = None, None
+    if len(time_a) > 1 and len(time_b) > 1:
+        t_time_stat, t_time_pval = run_t_test(time_a, time_b)
+
+    return {
+        "approval_rate": ar_test,
+        "default_rate": dr_test,
+        "avg_loan_size": {"t_stat": t_stat, "p_value": t_pval},
+        "processing_time": {"t_stat": t_time_stat, "p_value": t_time_pval},
+        "n_a": n_a,
+        "n_b": n_b,
     }
-    
-    results = {}
-    for metric, data in metrics.items():
-        z, p = two_proportion_ztest(data["n_success"], data["n_total"])
-        ci_low, ci_high = confidence_interval(data["n_success"], data["n_total"])
-        diff = data["rate_b"] - data["rate_a"]
-        significant = p < ALPHA
-        
-        if data["direction"] == "higher is better":
-            beneficial = diff > 0 and significant
-        else:
-            beneficial = diff < 0 and significant
-        
-        results[metric] = {
-            "z_statistic": round(z, 4),
-            "p_value": round(p, 6),
-            "ci_95": (round(ci_low, 6), round(ci_high, 6)),
-            "treatment_effect": round(diff, 6),
-            "significant": bool(significant),
-            "beneficial": bool(beneficial),
-            "rate_a": round(data["rate_a"], 6),
-            "rate_b": round(data["rate_b"], 6),
-        }
-    
-    return results, df_a, df_b
+
+def run_t_test(a, b):
+    from scipy import stats as sp_stats
+    t = sp_stats.ttest_ind(a, b, equal_var=False)
+    return t.statistic, t.pvalue
