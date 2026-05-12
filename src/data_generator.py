@@ -1,74 +1,79 @@
 """Generate synthetic credit eligibility data for A/B testing."""
 
 import numpy as np
-from typing import Tuple
+import pandas as pd
 
 
-def generate_credit_data(n: int = 5000, group: str = "A", seed: int = 42) -> dict:
-    """
-    Generate synthetic credit eligibility data.
+def generate_credit_data(n_per_group: int = 2500, seed: int = 42) -> pd.DataFrame:
+    """Generate synthetic credit eligibility data.
 
     Args:
-        n: Number of applicants
-        group: 'A' (control) or 'B' (treatment)
-        seed: Random seed for reproducibility
+        n_per_group: Number of applicants per group (default 2500).
+        seed: Random seed for reproducibility.
 
     Returns:
-        Dictionary with keys: approved, defaulted, avg_loan_size, processing_time
+        DataFrame with columns: group, approved, defaulted, loan_size, processing_time
     """
-    np.random.seed(seed + (0 if group == "A" else 1))
+    np.random.seed(seed)
 
-    if group == "A":
-        approval_prob = 0.62
-        default_given_approved_prob = 0.11
-        base_loan_size = 15000
-        base_processing_time = 4.5
-    else:
-        approval_prob = 0.71
-        default_given_approved_prob = 0.09
-        base_loan_size = 15500
-        base_processing_time = 3.8
+    records = []
 
-    approved_mask = np.random.random(n) < approval_prob
+    for group in ["A", "B"]:
+        for i in range(n_per_group):
+            if group == "A":
+                approved = np.random.random() < 0.62
+                default_rate = 0.11
+                base_loan = np.random.uniform(10_000, 150_000)
+                base_time = np.random.uniform(30, 120)
+            else:
+                approved = np.random.random() < 0.71
+                default_rate = 0.09
+                base_loan = np.random.uniform(10_000, 150_000)
+                base_time = np.random.uniform(25, 100)
 
-    num_approved = approved_mask.sum()
+            defaulted = 0
+            if approved:
+                defaulted = 1 if np.random.random() < default_rate else 0
 
-    defaulted = np.zeros(n, dtype=bool)
-    if num_approved > 0:
-        default_draw = np.random.random(num_approved)
-        defaulted[approved_mask] = default_draw < default_given_approved_prob
+            loan_size = base_loan + np.random.normal(0, 5_000) if approved else 0
+            loan_size = max(loan_size, 0)
 
-    loan_sizes = np.where(
-        approved_mask,
-        np.random.lognormal(np.log(base_loan_size), 0.3, n),
-        0
-    )
+            processing_time = base_time + np.random.normal(0, 10)
 
-    processing_times = np.where(
-        approved_mask,
-        np.random.lognormal(np.log(base_processing_time), 0.25, n),
-        0
-    )
+            records.append({
+                "group": group,
+                "applicant_id": f"{group}_{i+1}",
+                "approved": 1 if approved else 0,
+                "defaulted": defaulted,
+                "loan_size": round(loan_size, 2),
+                "processing_time": round(max(processing_time, 1), 1),
+            })
 
-    return {
-        "n": n,
-        "approved": int(num_approved),
-        "defaulted": int(defaulted.sum()),
-        "avg_loan_size": float(loan_sizes[approved_mask].mean()) if num_approved > 0 else 0.0,
-        "processing_time": float(processing_times[approved_mask].mean()) if num_approved > 0 else 0.0,
-        "approval_rate": num_approved / n,
-        "default_rate": defaulted.sum() / num_approved if num_approved > 0 else 0.0,
-    }
+    df = pd.DataFrame(records)
+    return df
 
 
-def compute_group_metrics(data: dict) -> dict:
-    """Compute summary metrics from generated data."""
-    return {
-        "n": data["n"],
-        "approvals": data["approved"],
-        "approval_rate": data["approval_rate"],
-        "defaults": data["defaulted"],
-        "default_rate": data["default_rate"],
-        "avg_loan_size": data["avg_loan_size"],
-        "avg_processing_time": data["processing_time"],
-    }
+def compute_group_stats(df: pd.DataFrame) -> dict:
+    """Compute summary statistics per group.
+
+    Args:
+        df: DataFrame from generate_credit_data.
+
+    Returns:
+        Dict with stats for each group.
+    """
+    stats = {}
+    for group in ["A", "B"]:
+        g = df[df["group"] == group]
+        n = len(g)
+        n_approved = g["approved"].sum()
+        n_defaulted = g["defaulted"].sum()
+
+        stats[group] = {
+            "n": n,
+            "approval_rate": g["approved"].mean(),
+            "default_rate": g["defaulted"].mean() if n_approved > 0 else 0,
+            "avg_loan_size": g[g["approved"] == 1]["loan_size"].mean() if n_approved > 0 else 0,
+            "avg_processing_time": g[g["approved"] == 1]["processing_time"].mean() if n_approved > 0 else 0,
+        }
+    return stats

@@ -2,60 +2,48 @@
 
 ## Business Problem
 
-A lender wants to evaluate whether a new credit eligibility model (Group B) improves outcomes compared to the current model (Group A). The key metrics are:
+A lender wants to test whether a new credit eligibility model (Group B) outperforms the current model (Group A). The goal is to determine if the new model:
 
-- **Approval Rate**: Higher is better — more loans originated
-- **Default Rate**: Lower is better — fewer losses from bad loans
-
-The new model is expected to:
-- Increase approval rate (approve more creditworthy applicants)
-- Decrease default rate (better at identifying risk)
+- Increases **approval rate** (good for business)
+- Decreases **default rate** (good for risk management)
 
 ## Methodology
 
-### Experiment Design
-- **Control Group (A)**: Current eligibility model
-- **Treatment Group (B)**: New eligibility model
-- **Sample Size**: 5,000 applicants per group (10,000 total)
-- **Allocation**: 50/50 split
+### Data Generation
+- **5,000 total applicants** split evenly between Group A (control) and Group B (treatment)
+- Group A uses current eligibility rules: ~62% approval, ~11% default rate
+- Group B uses new rules: ~71% approval, ~9% default rate
+- Realistic noise added so results aren't perfectly clean
 
-### Synthetic Data Generation
-Realistic loan application data with the following characteristics:
+### Metrics Tracked
+| Metric | Description |
+|--------|-------------|
+| `approval_rate` | Proportion of applicants approved |
+| `default_rate` | Proportion of approved loans that default |
+| `avg_loan_size` | Average loan amount (in rand) |
+| `processing_time` | Average processing time per application (minutes) |
 
-| Metric | Group A (Control) | Group B (Treatment) |
-|--------|-------------------|---------------------|
-| Approval Rate | ~62% | ~71% |
-| Default Rate | ~11% | ~9% |
-| Avg Loan Size | ~$15,000 | ~$15,500 |
-| Processing Time | ~4.5 days | ~3.8 days |
+### Statistical Testing
+- **Two-proportion z-test** for each metric
+- **95% confidence intervals** for the difference between groups
+- **α = 0.05** significance level
+- Report: z-statistic, p-value, CI, and statistical conclusion
 
-Noise is added to simulate real-world variance (seasonal effects, applicant mix, regional differences).
-
-### Statistical Analysis
-- **Two-Proportion Z-Test** for approval rate and default rate
-- **95% Confidence Intervals** for the difference between groups
-- **Statistical Power** analysis to ensure adequate sample size
-- **Minimum Detectable Effect (MDE)** calculation
-
-### Decision Criteria
-- Significance level: α = 0.05
-- Null hypothesis (H₀): No difference between groups
-- Alternative hypothesis (H₁): Significant difference exists
-- Conclusion: Reject H₀ if p-value < 0.05
-
-## Files
-
-- `src/data_generator.py` — Synthetic data generation
-- `src/statistical.py` — Statistical tests and power analysis
-- `src/simulate.py` — Experiment simulation runner
-- `src/report.py` — Results reporting
-- `run_pipeline.py` — End-to-end pipeline execution
-
-## Usage
-
-```bash
-pip install -r requirements.txt
-python run_pipeline.py
+## File Structure
+```
+ab-testing-eligibility/
+├── README.md
+├── requirements.txt
+├── run_pipeline.py
+└── src/
+    ├── __init__.py
+    ├── data_generator.py
+    ├── statistical.py
+    ├── simulate.py
+    └── report.py
 ```
 
-Results are saved to `results.json` and printed to stdout.
+## Usage
+```bash
+python run_pipeline.py
+```

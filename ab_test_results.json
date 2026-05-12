@@ -1,47 +1,48 @@
 {
-  "group_a": {
-    "n": 2500,
-    "approval_rate": 0.6188,
-    "default_rate": 0.0756,
-    "avg_loan_size": 261167.18571999998,
-    "avg_processing_time": 4.261512
+  "group_stats": {
+    "A": {
+      "n": 2500,
+      "approval_rate": 0.6356,
+      "default_rate": 0.0728,
+      "avg_loan_size": 78931.51522970421,
+      "avg_processing_time": 74.53373190685966
+    },
+    "B": {
+      "n": 2500,
+      "approval_rate": 0.7084,
+      "default_rate": 0.06,
+      "avg_loan_size": 80067.62624505928,
+      "avg_processing_time": 64.0811405985319
+    }
   },
-  "group_b": {
-    "n": 2500,
-    "approval_rate": 0.7296,
-    "default_rate": 0.068,
-    "avg_loan_size": 256898.42094800004,
-    "avg_processing_time": 4.241236
-  },
-  "approval_rate": {
-    "x_a": 1547,
-    "x_b": 1824,
-    "rate_a": 0.6188,
-    "rate_b": 0.7296,
-    "z_statistic": 8.3584,
-    "p_value": 0.0,
-    "ci_95": [
-      0.089,
-      0.1326
-    ],
-    "diff": 0.1108,
-    "significant": 1
-  },
-  "default_rate": {
-    "x_a": 189,
-    "x_b": 170,
-    "rate_a": 0.0756,
-    "rate_b": 0.068,
-    "z_statistic": -1.0408,
-    "p_value": 0.148974,
-    "ci_95": [
-      -0.01961,
-      0.00441
-    ],
-    "diff": -0.0076,
-    "significant": 0
-  },
-  "power_approval": 0.0,
-  "power_default": 0.821,
-  "mde": 0.05603
+  "test_results": {
+    "approval_rate": {
+      "metric": "approval_rate",
+      "group_a_rate": 0.6356,
+      "group_b_rate": 0.7084,
+      "treatment_effect": 0.0728,
+      "z_statistic": -5.4823,
+      "p_value": 0.0,
+      "ci_95_lower": -0.0987,
+      "ci_95_upper": -0.0469,
+      "statistical_power": 0.9996,
+      "mde": 0.0381,
+      "significant_at_0.05": true,
+      "conclusion": "SIGNIFICANT"
+    },
+    "default_rate": {
+      "metric": "default_rate",
+      "group_a_rate": 0.0728,
+      "group_b_rate": 0.06,
+      "treatment_effect": -0.0128,
+      "z_statistic": 1.8176,
+      "p_value": 0.069124,
+      "ci_95_lower": -0.001,
+      "ci_95_upper": 0.0266,
+      "statistical_power": 0.4137,
+      "mde": 0.0206,
+      "significant_at_0.05": false,
+      "conclusion": "NOT SIGNIFICANT"
+    }
+  }
 }

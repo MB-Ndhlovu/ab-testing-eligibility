@@ -1,39 +1,31 @@
 """Execute the full A/B testing pipeline."""
 
-import json
-import numpy as np
-from src.simulate import run_simulation
-from src.report import generate_report
+import sys
+import os
 
+sys.path.insert(0, os.path.dirname(__file__))
 
-class NumpyEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, np.bool_):
-            return bool(obj)
-        if isinstance(obj, np.integer):
-            return int(obj)
-        if isinstance(obj, np.floating):
-            return float(obj)
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-        return super().default(obj)
+from src.simulate import run_experiment, summarize_results
+from src.report import generate_report, save_json_results
 
 
 def main():
-    print("Running A/B Test Simulation...")
-    print("")
+    print("Running A/B Test Experiment...")
+    print("-" * 40)
 
-    results = run_simulation(n=5000, seed=42)
+    experiment = run_experiment(seed=42, n_per_group=2500)
 
-    report = generate_report(results)
+    summary = summarize_results(experiment)
+    print(summary)
+
+    report = generate_report(experiment)
+    print("\n" + "=" * 60)
+    print("MARKDOWN REPORT")
+    print("=" * 60)
     print(report)
 
-    with open("results.json", "w") as f:
-        json.dump(results, f, indent=2, cls=NumpyEncoder)
-
-    print("Results saved to results.json")
-
-    return results
+    save_json_results(experiment, "ab_test_results.json")
+    print("\nPipeline complete.")
 
 
 if __name__ == "__main__":
