@@ -1,42 +1,68 @@
+#!/usr/bin/env python3
 import json
-from src.simulate import simulate_experiment, format_results
-from src.report import generate_report, save_json_report
+import sys
+import os
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from src.simulate import run_simulation
+from src.report import generate_report
 
 def main():
-    print("Running A/B Testing Pipeline...")
-    print()
-    
-    # Run experiment simulation
-    results = simulate_experiment(seed=42)
-    
-    # Print console output
-    console_output = format_results(results)
-    print(console_output)
-    
-    # Generate and print full report
+    print("Running A/B Test Pipeline...")
+    print("")
+
+    # Run simulation
+    results = run_simulation(n=5000, seed=42)
+
+    # Generate and print report
     report = generate_report(results)
-    print("\n")
     print(report)
-    
+
     # Save JSON results
-    save_json_report(results, 'results.json')
-    print("\nResults saved to results.json")
-    
-    # Return summary for Telegram
-    approval_sig = results['approval_analysis']['significant']
-    default_sig = results['default_analysis']['significant']
-    approval_te = results['treatment_effect_approval']
-    default_te = results['treatment_effect_default']
-    
-    summary = (
-        f"Approval rate effect: {approval_te*100:+.2f}% "
-        f"({'significant' if approval_sig else 'not significant'})\n"
-        f"Default rate effect: {default_te*100:+.2f}% "
-        f"({'significant' if default_sig else 'not significant'})\n"
-        f"Recommendation: {'Adopt new model' if (approval_sig and default_sig) else 'Further analysis needed'}"
-    )
-    
-    return results, summary
+    output_path = os.path.join(os.path.dirname(__file__), 'results.json')
+
+    # Convert tuples to lists for JSON serialization
+    results_json = {
+        'n_A': results['n_A'],
+        'n_B': results['n_B'],
+        'approval': {
+            'rate_A': float(results['approval']['rate_A']),
+            'rate_B': float(results['approval']['rate_B']),
+            'effect': float(results['approval']['effect']),
+            'mde': float(results['approval']['mde']),
+            'z_statistic': float(results['approval']['z_statistic']),
+            'p_value': float(results['approval']['p_value']),
+            'ci_95': [float(x) for x in results['approval']['ci_95']],
+            'significant': bool(results['approval']['significant'])
+        },
+        'default': {
+            'rate_A': float(results['default']['rate_A']),
+            'rate_B': float(results['default']['rate_B']),
+            'effect': float(results['default']['effect']),
+            'mde': float(results['default']['mde']),
+            'z_statistic': float(results['default']['z_statistic']),
+            'p_value': float(results['default']['p_value']),
+            'ci_95': [float(x) for x in results['default']['ci_95']],
+            'significant': bool(results['default']['significant'])
+        },
+        'avg_loan_size': {
+            'A': float(results['avg_loan_size']['A']),
+            'B': float(results['avg_loan_size']['B'])
+        },
+        'avg_processing_time': {
+            'A': float(results['avg_processing_time']['A']),
+            'B': float(results['avg_processing_time']['B'])
+        }
+    }
+
+    with open(output_path, 'w') as f:
+        json.dump(results_json, f, indent=2)
+
+    print("")
+    print(f"Results saved to: {output_path}")
+
+    return results
 
 if __name__ == '__main__':
-    results, summary = main()
+    main()
