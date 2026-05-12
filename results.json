@@ -1,34 +1,38 @@
 {
-  "sample_sizes": {
-    "group_a": 2500,
-    "group_b": 2500
+  "group_stats": {
+    "A": {
+      "n": 2500.0,
+      "approval_rate": 0.6008,
+      "default_rate": 0.1118508655126498,
+      "avg_loan_size": 40463.16535303113,
+      "avg_processing_time": 63.91520013999436
+    },
+    "B": {
+      "n": 2500.0,
+      "approval_rate": 0.6944,
+      "default_rate": 0.08928571428571429,
+      "avg_loan_size": 40621.06814138003,
+      "avg_processing_time": 58.68733781044276
+    }
   },
-  "approval_rate": {
-    "group_a": 0.6188,
-    "group_b": 0.7176,
-    "difference": 0.0988,
-    "z_statistic": 7.4185755626574235,
-    "p_value": 1.1834977442504169e-13,
-    "ci_lower": 0.07284140944843903,
-    "ci_upper": 0.12475859055156097,
-    "significant": 1.0
+  "approval_analysis": {
+    "z_statistic": -6.927228052082333,
+    "p_value": 4.291678123991005e-12,
+    "ci_lower": -0.11995544556236634,
+    "ci_upper": -0.06724455443763369,
+    "significant": 1.0,
+    "alpha": 0.05
   },
-  "default_rate": {
-    "group_a": 0.11700064641241112,
-    "group_b": 0.09698996655518395,
-    "difference": -0.020010679857227168,
-    "z_statistic": -1.8715325279528419,
-    "p_value": 0.061271305617713656,
-    "ci_lower": -0.04108386950923367,
-    "ci_upper": 0.0010625097947793358,
-    "significant": 0.0
+  "default_analysis": {
+    "z_statistic": 0.747899784963747,
+    "p_value": 0.4545206072880412,
+    "ci_lower": -0.008426481549190746,
+    "ci_upper": 0.01882648154919074,
+    "significant": 0.0,
+    "alpha": 0.05
   },
-  "avg_loan_size": {
-    "group_a": 55982145.13531682,
-    "group_b": 52904176.94733289
-  },
-  "avg_processing_time": {
-    "group_a": 62.19710693543933,
-    "group_b": 50.101758880206596
+  "treatment_effects": {
+    "approval": 0.09360000000000002,
+    "default": -0.022565151226935518
   }
 }
