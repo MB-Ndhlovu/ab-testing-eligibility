@@ -1,24 +1,35 @@
 # A/B Testing Framework for Credit Eligibility
 
 ## Business Problem
-A lender wants to test a new credit eligibility model (Group B) against their current model (Group A). The goal is to determine whether the new model improves approval rates and reduces default rates without introducing statistical false positives.
+
+A lender wants to test a new credit eligibility model (Group B / treatment) against their current model (Group A / control). The goal is to determine whether the new model improves approval rates and reduces default rates without introducing statistical false positives.
 
 ## Methodology
-- Generate synthetic data for 5,000 loan applicants split evenly into control (A) and treatment (B) groups
-- Group A uses current eligibility rules: ~62% approval rate, ~11% default rate
-- Group B uses new eligibility rules: ~71% approval rate, ~9% default rate
-- Apply two-proportion z-test for each metric to detect statistically significant differences
-- Report z-statistic, p-value, 95% confidence interval, and statistical conclusion at α=0.05
 
-## Metrics
-| Metric | Group A (Control) | Group B (Treatment) |
-|---|---|---|
-| Approval Rate | ~62% | ~71% |
-| Default Rate | ~11% | ~9% |
+- **Population**: 5,000 synthetic credit applications, split 50/50 into control (A) and treatment (B)
+- **Control Group (A)**: Current eligibility model
+  - Approval rate: ~62%
+  - Default rate: ~11%
+- **Treatment Group (B)**: New eligibility model
+  - Approval rate: ~71% (improved)
+  - Default rate: ~9% (improved)
+- **Metrics tested**: Approval rate, Default rate
+- **Statistical test**: Two-proportion z-test (α = 0.05)
+- **Output**: z-statistic, p-value, 95% CI for difference, statistical conclusion
 
 ## Files
-- `src/data_generator.py` — Synthetic loan applicant data generation
-- `src/statistical.py` — Two-proportion z-test, confidence intervals, power analysis
-- `src/simulate.py` — Experiment runner and treatment effect computation
-- `src/report.py` — Human-readable summary report
-- `run_pipeline.py` — End-to-end pipeline execution
+
+| File | Purpose |
+|------|---------|
+| `src/data_generator.py` | Generate synthetic credit application data |
+| `src/statistical.py` | Two-proportion z-test, CI, power, MDE |
+| `src/simulate.py` | Run experiment simulation |
+| `src/report.py` | Generate readable summary report |
+| `run_pipeline.py` | Execute full pipeline and save JSON results |
+
+## Getting Started
+
+```bash
+pip install -r requirements.txt
+python run_pipeline.py
+```

@@ -1,24 +1,19 @@
 import json
-import sys
-import numpy as np
-sys.path.insert(0, "/home/workspace/Projects/ab-testing-eligibility")
-
 from src.simulate import run_simulation
 from src.report import generate_report
 
 def main():
-    print("Running A/B test simulation...\n")
-    results = run_simulation()
+    print("Running A/B test pipeline...")
+    results = run_simulation(n=5000, seed=42)
+
     report = generate_report(results)
     print(report)
 
-    out_path = "/home/workspace/Projects/ab-testing-eligibility/results.json"
-    json_data = json.dumps(results, indent=2, default=float)
-    with open(out_path, "w") as f:
-        f.write(json_data)
+    with open("/home/workspace/Projects/ab-testing-eligibility/results.json", "w") as f:
+        json.dump(results, f, indent=2)
 
-    print(f"\nResults saved to {out_path}")
-    return report, results
+    print("\nResults saved to results.json")
+    return results
 
 if __name__ == "__main__":
     main()
