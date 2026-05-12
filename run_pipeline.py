@@ -1,32 +1,24 @@
-"""Execute the full A/B testing pipeline."""
-
+import json
 import sys
-import os
+import numpy as np
+sys.path.insert(0, "/home/workspace/Projects/ab-testing-eligibility")
 
-sys.path.insert(0, os.path.dirname(__file__))
-
-from src.simulate import run_experiment, summarize_results
-from src.report import generate_report, save_json_results
-
+from src.simulate import run_simulation
+from src.report import generate_report
 
 def main():
-    print("Running A/B Test Experiment...")
-    print("-" * 40)
-
-    experiment = run_experiment(seed=42, n_per_group=2500)
-
-    summary = summarize_results(experiment)
-    print(summary)
-
-    report = generate_report(experiment)
-    print("\n" + "=" * 60)
-    print("MARKDOWN REPORT")
-    print("=" * 60)
+    print("Running A/B test simulation...\n")
+    results = run_simulation()
+    report = generate_report(results)
     print(report)
 
-    save_json_results(experiment, "ab_test_results.json")
-    print("\nPipeline complete.")
+    out_path = "/home/workspace/Projects/ab-testing-eligibility/results.json"
+    json_data = json.dumps(results, indent=2, default=float)
+    with open(out_path, "w") as f:
+        f.write(json_data)
 
+    print(f"\nResults saved to {out_path}")
+    return report, results
 
 if __name__ == "__main__":
     main()

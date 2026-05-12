@@ -1,50 +1,38 @@
 {
-  "group_a": {
-    "n": 5000,
-    "approvals": 3101,
-    "approval_rate": 0.6202,
-    "defaults": 354,
-    "default_rate": 0.11415672363753628,
-    "avg_loan_size": 15680.167668003167,
-    "avg_processing_time": 4.630909488576056
+  "approval_rate": {
+    "group_a": 0.6116,
+    "group_b": 0.7132,
+    "treatment_effect": 0.10159999999999991,
+    "z_statistic": 7.596041584006313,
+    "p_value": 3.064215547965432e-14,
+    "ci_95": [
+      0.07553642281043324,
+      0.12766357718956658
+    ],
+    "power": 0.9999999913016494,
+    "significant": 1.0
   },
-  "group_b": {
-    "n": 5000,
-    "approvals": 3518,
-    "approval_rate": 0.7036,
-    "defaults": 347,
-    "default_rate": 0.09863558840250142,
-    "avg_loan_size": 16216.393422857744,
-    "avg_processing_time": 3.899093830684519
+  "default_rate": {
+    "group_a": 0.1036,
+    "group_b": 0.08,
+    "treatment_effect": -0.023599999999999996,
+    "z_statistic": -2.889714386484885,
+    "p_value": 0.0038559198325742727,
+    "ci_95": [
+      -0.039593452149712285,
+      -0.0076065478502877065
+    ],
+    "power": 0.8237498341743053,
+    "significant": 1.0
   },
-  "approval_test": {
-    "z_statistic": 8.814897751209038,
-    "p_value": 0.0,
-    "diff": 0.08340000000000003,
-    "ci_lower": 0.06492812560458472,
-    "ci_upper": 0.10187187439541534,
-    "significant": true,
-    "p1": 0.6202,
-    "p2": 0.7036
+  "avg_loan_size": {
+    "group_a": 43652.052591525884,
+    "group_b": 47243.05373114834,
+    "treatment_effect": 3591.001139622458
   },
-  "default_test": {
-    "z_statistic": -2.0477266609692224,
-    "p_value": 0.04058678995326814,
-    "diff": -0.015521135235034858,
-    "ci_lower": -0.030432904340936838,
-    "ci_upper": -0.0006093661291328781,
-    "significant": true,
-    "p1": 0.11415672363753628,
-    "p2": 0.09863558840250142
-  },
-  "power": {
-    "approval": 0.9999999999971982,
-    "default": 0.5319651214862136
-  },
-  "mde": {
-    "approval": 0.027194256785065533,
-    "default": 0.021944739086948706
-  },
-  "sample_size": 5000,
-  "alpha": 0.05
+  "avg_processing_time": {
+    "group_a": 3.596939215429558,
+    "group_b": 3.3116633987707593,
+    "treatment_effect": -0.28527581665879875
+  }
 }
