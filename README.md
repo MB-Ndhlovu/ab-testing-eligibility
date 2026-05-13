@@ -1,27 +1,28 @@
 # A/B Testing Framework for Credit Eligibility
 
 ## Business Problem
+A lender wants to test a new credit eligibility model (Group B) against their current model (Group A). The goal is to determine whether the new model improves approval rates without significantly increasing default rates.
 
-A lender wants to test whether a new credit eligibility model (Group B) performs better than the current model (Group A). The key metrics are:
-
-- **Approval Rate**: Higher is better (more loans approved)
-- **Default Rate**: Lower is better (fewer defaults)
-- **Avg Loan Size**: Indicates loan magnitude
-- **Processing Time**: Operational efficiency
+## Key Metrics
+- **Approval Rate**: Proportion of loan applications approved
+- **Default Rate**: Proportion of approved loans that default
+- **Average Loan Size**: Mean loan amount disbursed
+- **Processing Time**: Average time to process applications (hours)
 
 ## Methodology
 
-1. **Generate synthetic data**: 5,000 applicants split evenly into control (A) and treatment (B)
-2. **Run experiment simulation**: Apply realistic eligibility rules with noise
-3. **Statistical testing**: Two-proportion z-test for approval_rate and default_rate
-4. **Confidence intervals**: 95% CI for the difference between groups
-5. **Power analysis**: Minimum detectable effect at 80% power
+### Data Generation
+- 5,000 synthetic loan applications split evenly: 2,500 in Group A (control), 2,500 in Group B (treatment)
+- Group A (current model): approval_rate ≈ 0.62, default_rate ≈ 0.11
+- Group B (new model): approval_rate ≈ 0.71, default_rate ≈ 0.09
+- Realistic noise added to simulate real-world variability
 
-## Expected Outcomes
+### Statistical Analysis
+- Two-proportion z-test for approval_rate and default_rate
+- 95% Confidence Intervals for the difference between groups
+- Statistical significance at α = 0.05
+- Power analysis to validate experimental design
 
-| Metric | Group A (Control) | Group B (Treatment) |
-|--------|-----------------|-------------------|
-| Approval Rate | ~62% | ~71% |
-| Default Rate | ~11% | ~9% |
-
-The treatment effect is subtle — designed to test whether the framework can detect small but meaningful improvements in credit decisioning.
+### Output
+- JSON results file with full statistical breakdown
+- Readable summary report with conclusions

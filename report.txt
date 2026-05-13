@@ -1,56 +1,63 @@
-============================================================
-  A/B TEST REPORT — Credit Eligibility Model
-============================================================
+A/B TESTING FRAMEWORK — CREDIT ELIGIBILITY
+=======================================================
+Generated: 2026-05-13 00:32:33
 
-EXPERIMENT SETUP
-  Sample size       : 5,000 applicants
-  Allocation        : 50% control (A) / 50% treatment (B)
-  Significance level: alpha = 0.05
+EXPERIMENT SUMMARY
+-------------------------------------------------------
+  Total applicants:     5000
+  Per group:            2500
+  Significance level:  α = 0.05
 
-------------------------------------------------------------
-GROUP SUMMARY
-------------------------------------------------------------
-  Metric                      Group A      Group B
-  ---------------------- ------------ ------------
-  Approval Rate                63.84%       72.96%
-  Default Rate                   8.40%        7.07%
-  Avg Loan Size (ZAR)        R630,038     R326,301
-  Avg Processing Time        13.6 min     14.4 min
+GROUP STATISTICS
+-------------------------------------------------------
 
-------------------------------------------------------------
-STATISTICAL RESULTS
-------------------------------------------------------------
+  Group A — Control (Current Model)
+    Applications:       2500
+    Approved:          1547 (61.88%)
+    Defaults:          181 (11.70%)
+    Avg loan size:     $42,913.38
+    Avg processing:    13.08 hrs
 
-1. APPROVAL RATE
-   Group A rate     : 63.84%
-   Group B rate     : 72.96%
-   Treatment effect : +0.0912 (+9.12 pp)
-   z-statistic      : +6.9355
-   p-value          : 0.000000
-   95% CI           : [+0.0656, +0.1168]
-   Significant?     : YES
+  Group B — Treatment (New Model)
+    Applications:       2500
+    Approved:          1823 (72.92%)
+    Defaults:          170 (9.33%)
+    Avg loan size:     $42,825.00
+    Avg processing:    13.91 hrs
 
-2. DEFAULT RATE
-   Group A rate     : 8.40%
-   Group B rate     : 7.07%
-   Treatment effect : -0.0132 (-1.32 pp)
-   z-statistic      : -1.4494
-   p-value          : 0.147224
-   95% CI           : [-0.0312, +0.0048]
-   Significant?     : NO
+STATISTICAL ANALYSIS
+-------------------------------------------------------
 
-------------------------------------------------------------
+  Approval Rate:
+    Control rate:        61.88%
+    Treatment rate:      72.92%
+    Absolute diff:       +11.04%
+    Relative diff:       +17.84%
+    Z-statistic:         8.3269
+    P-value:             0.000000
+    95% CI:              [+8.46%, +13.62%]
+    Statistically sig?:  YES
+
+  Default Rate:
+    Control rate:        11.70%
+    Treatment rate:      9.33%
+    Absolute diff:       -2.37%
+    Relative diff:       -20.30%
+    Z-statistic:         -2.7374
+    P-value:             0.006192
+    95% CI:              [-4.07%, -0.68%]
+    Statistically sig?:  YES
+
 POWER ANALYSIS
-------------------------------------------------------------
-   Observed MDE     : 0.0912 (9.12 pp)
-   MDE for 80% power: 0.0381 (3.81 pp)
-   Achieved power   : 100.00%
+-------------------------------------------------------
+  Approval rate power:         1.0000 (100.0%)
+  Default rate power:         0.7822 (78.2%)
+  Min detectable effect (AR): 3.85%
+  Min detectable effect (DR): 2.55%
 
-------------------------------------------------------------
-RECOMMENDATION
-------------------------------------------------------------
-CAUTION — Approve with monitoring.
-  -> Significantly higher approval rate but default rate difference is not significant.
-  -> Ensure default rate does not worsen before full rollout.
-
-============================================================
+CONCLUSION
+=======================================================
+  RECOMMENDATION: Adopt new model (Group B)
+  - Significantly higher approval rate
+  - Significantly lower default rate
+=======================================================
