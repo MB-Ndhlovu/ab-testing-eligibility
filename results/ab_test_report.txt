@@ -1,0 +1,73 @@
+=================================================================
+   A/B TESTING FRAMEWORK - CREDIT ELIGIBILITY MODEL
+=================================================================
+   Report Generated: 2026-05-13 00:52:59
+   Significance Level (α): 0.05
+=================================================================
+
+📋 BUSINESS CONTEXT
+-----------------------------------------------------------------
+   A lender is evaluating a new credit eligibility model (Group B)
+   against their current model (Group A / Control).
+
+   Goals:
+     • Increase approval rate (target: ~71% vs ~62%)
+     • Decrease default rate (target: ~9% vs ~11%)
+
+📊 DATA SUMMARY
+-----------------------------------------------------------------
+   Metric                             Control (A)     Treatment (B)
+   ------------------------------ --------------- -----------------
+   Sample Size                              5,000             5,000
+   Approved Applications                    3,101             3,556
+   Approval Rate                           62.02%            71.12%
+   Defaults                                   352               327
+   Default Rate                            11.35%             9.20%
+   Avg Loan Size                       $47,195.79        $46,811.74
+   Avg Processing Time                       4.0 hrs              4.0 hrs
+
+🔬 TEST 1: APPROVAL RATE
+-----------------------------------------------------------------
+   H₀: No difference in approval rates between groups
+   H₁: There is a difference in approval rates
+
+   Observed Rates:    Control = 0.6202, Treatment = 0.7112
+   Difference:        +0.0910 (+9.10 percentage points)
+   95% CI:            [+0.0612, +0.1208]
+   Z-Statistic:       9.6450
+   P-Value:          0.000000
+
+   Result: ✅ STATISTICALLY SIGNIFICANT at α=0.05
+   → New model increases approval rate by 9.10 percentage points
+
+🔬 TEST 2: DEFAULT RATE
+-----------------------------------------------------------------
+   H₀: No difference in default rates between groups
+   H₁: There is a difference in default rates
+
+   Observed Rates:    Control = 0.0704, Treatment = 0.0654
+   Difference:        -0.0050 (-0.50 percentage points)
+   95% CI:            [-0.0171, +0.0071]
+   Z-Statistic:       -0.9937
+   P-Value:          0.320348
+
+   Result: ❌ NOT SIGNIFICANT at α=0.05
+
+⚙️  POWER ANALYSIS
+-----------------------------------------------------------------
+   Approval Rate Test:
+     • Statistical Power: 1.0000 (target: 0.80)
+     • Min Detectable Effect: 0.0280
+   Default Rate Test:
+     • Statistical Power: 0.0016 (target: 0.80)
+     • Min Detectable Effect: 0.0280
+
+=================================================================
+📌 EXECUTIVE SUMMARY
+=================================================================
+   ⚠️  CONDITIONAL RECOMMENDATION
+
+   Approval rate improved significantly, but default rate change is not
+   statistically significant. Consider a larger sample or further testing.
+
+=================================================================

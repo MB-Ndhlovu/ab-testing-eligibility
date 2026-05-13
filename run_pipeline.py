@@ -1,53 +1,36 @@
-"""Execute the full A/B testing pipeline and save results."""
+#!/usr/bin/env python3
+"""Execute the full A/B test pipeline for credit eligibility."""
 
 import json
-import sys
 import os
-
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
-from src.simulate import run_simulation, print_results
+from src.simulate import run_simulation, print_simulation_results
 from src.report import generate_report, save_json_results
 
 
 def main():
-    print("Starting A/B Testing Pipeline...")
-    print()
+    project_dir = os.path.dirname(os.path.abspath(__file__))
+    results_dir = os.path.join(project_dir, "results")
+    os.makedirs(results_dir, exist_ok=True)
 
-    results = run_simulation()
+    print("\n🚀 Starting A/B Test Pipeline...")
+    print("=" * 60)
 
-    print_results(results)
+    results = run_simulation(n_per_group=5000)
 
-    output_dir = os.path.dirname(os.path.abspath(__file__))
+    print_simulation_results(results)
 
-    json_path = os.path.join(output_dir, 'results.json')
+    report_path = os.path.join(results_dir, "ab_test_report.txt")
+    report = generate_report(results, output_path=report_path)
+
+    json_path = os.path.join(results_dir, "ab_test_results.json")
     save_json_results(results, json_path)
-    print(f"\n[Saved] JSON results: {json_path}")
 
-    report_path = os.path.join(output_dir, 'report.txt')
-    report = generate_report(results, filepath=report_path)
-    print(f"[Saved] Text report: {report_path}")
+    print(f"\n✅ Pipeline complete!")
+    print(f"   Report saved to: {report_path}")
+    print(f"   JSON saved to:   {json_path}")
 
-    summary = {
-        'approval_rate': {
-            'control': f"{results['metrics']['approval_rate']['group_a_rate']*100:.2f}%",
-            'treatment': f"{results['metrics']['approval_rate']['group_b_rate']*100:.2f}%",
-            'diff': f"{results['metrics']['approval_rate']['absolute_diff']*100:+.2f}%",
-            'p_value': f"{results['metrics']['approval_rate']['p_value']:.6f}",
-            'significant': results['metrics']['approval_rate']['significant']
-        },
-        'default_rate': {
-            'control': f"{results['metrics']['default_rate']['group_a_rate']*100:.2f}%",
-            'treatment': f"{results['metrics']['default_rate']['group_b_rate']*100:.2f}%",
-            'diff': f"{results['metrics']['default_rate']['absolute_diff']*100:+.2f}%",
-            'p_value': f"{results['metrics']['default_rate']['p_value']:.6f}",
-            'significant': results['metrics']['default_rate']['significant']
-        }
-    }
-
-    print("\n[Pipeline Complete]")
-    return summary
+    return results
 
 
-if __name__ == '__main__':
-    summary = main()
+if __name__ == "__main__":
+    main()

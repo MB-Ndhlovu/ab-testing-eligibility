@@ -1,189 +1,154 @@
-"""Statistical tests for A/B testing: two-proportion z-tests and power analysis."""
+"""Statistical analysis for A/B testing using two-proportion z-test."""
 
 import numpy as np
 from scipy import stats
 
 
-def two_proportion_z_test(p1, p2, n1, n2, alternative='two-sided'):
+def two_proportion_ztest(n1, x1, n2, x2):
     """
     Perform a two-proportion z-test.
 
     Parameters
     ----------
-    p1 : float
-        Proportion in group 1 (control)
-    p2 : float
-        Proportion in group 2 (treatment)
     n1 : int
-        Sample size for group 1
+        Number of trials in group 1 (control).
+    x1 : int
+        Number of successes in group 1.
     n2 : int
-        Sample size for group 2
-    alternative : str
-        'two-sided', 'larger', or 'smaller'
+        Number of trials in group 2 (treatment).
+    x2 : int
+        Number of successes in group 2.
 
     Returns
     -------
     dict
-        Contains z_statistic, p_value, confidence_interval
+        Results containing z-statistic, p-value, and confidence interval.
     """
-    p_pooled = (p1 * n1 + p2 * n2) / (n1 + n2)
+    p1 = x1 / n1
+    p2 = x2 / n2
+    p_pooled = (x1 + x2) / (n1 + n2)
 
     se = np.sqrt(p_pooled * (1 - p_pooled) * (1/n1 + 1/n2))
+    z_stat = (p2 - p1) / se if se > 0 else 0
 
-    if se == 0:
-        return {
-            'z_statistic': 0.0,
-            'p_value': 1.0,
-            'ci_lower': 0.0,
-            'ci_upper': 0.0,
-            'significant': False
-        }
+    p_value_two_sided = 2 * (1 - stats.norm.cdf(abs(z_stat)))
 
-    z = (p2 - p1) / se
-
-    if alternative == 'two-sided':
-        p_value = 2 * (1 - stats.norm.cdf(abs(z)))
-    elif alternative == 'larger':
-        p_value = 1 - stats.norm.cdf(z)
-    elif alternative == 'smaller':
-        p_value = stats.norm.cdf(z)
-    else:
-        p_value = 2 * (1 - stats.norm.cdf(abs(z)))
-
-    se_diff = np.sqrt(p1 * (1 - p1) / n1 + p2 * (1 - p2) / n2)
-    ci_lower = (p2 - p1) - 1.96 * se_diff
-    ci_upper = (p2 - p1) + 1.96 * se_diff
-
-    alpha = 0.05
-    significant = p_value < alpha
+    se_diff = np.sqrt((p1 * (1 - p1) / n1) + (p2 * (2 - p2) / n2))
+    ci_margin = 1.96 * se_diff
+    ci_lower = (p2 - p1) - ci_margin
+    ci_upper = (p2 - p1) + ci_margin
 
     return {
-        'z_statistic': z,
-        'p_value': p_value,
-        'ci_lower': ci_lower,
-        'ci_upper': ci_upper,
-        'significant': significant,
-        'control_rate': p1,
-        'treatment_rate': p2,
-        'absolute_diff': p2 - p1
+        "z_statistic": round(z_stat, 4),
+        "p_value": round(p_value_two_sided, 6),
+        "p1": round(p1, 4),
+        "p2": round(p2, 4),
+        "difference": round(p2 - p1, 4),
+        "ci_95_lower": round(ci_lower, 4),
+        "ci_95_upper": round(ci_upper, 4),
+        "significant": p_value_two_sided < 0.05,
     }
 
 
-def compute_statistical_power(p1, p2, n1, n2, alpha=0.05):
+def compute_statistical_power(n, p1, p2, alpha=0.05):
     """
-    Compute statistical power for a two-proportion z-test.
+    Compute statistical power for a two-proportion test.
 
     Parameters
     ----------
-    p1 : float
-        Proportion in control group
-    p2 : float
-        Proportion in treatment group
-    n1, n2 : int
-        Sample sizes for each group
-    alpha : float
-        Significance level (default 0.05)
-
-    Returns
-    -------
-    float
-        Statistical power (0 to 1)
-    """
-    p_pooled = (p1 + p2) / 2
-    se_null = np.sqrt(p_pooled * (1 - p_pooled) * (1/n1 + 1/n2))
-    se_alt = np.sqrt(p1 * (1 - p1) / n1 + p2 * (1 - p2) / n2)
-
-    z_crit = stats.norm.ppf(1 - alpha / 2)
-    z_effect = abs(p2 - p1) / se_alt
-
-    power = stats.norm.cdf(z_effect - z_crit) + stats.norm.cdf(-z_effect - z_crit)
-    return power
-
-
-def minimum_detectable_effect(p1, n, alpha=0.05, power=0.8):
-    """
-    Compute minimum detectable effect (MDE) for a given power.
-
-    Parameters
-    ----------
-    p1 : float
-        Baseline proportion
     n : int
-        Sample size per group (assumes equal allocation)
+        Sample size per group.
+    p1 : float
+        Baseline proportion.
+    p2 : float
+        Treatment proportion.
     alpha : float
-        Significance level
-    power : float
-        Desired statistical power (0 to 1)
+        Significance level.
 
     Returns
     -------
     float
-        Minimum detectable effect (absolute difference)
+        Statistical power (probability of detecting true effect).
+    """
+    se_null = np.sqrt(2 * p1 * (1 - p1) / n)
+    se_alt = np.sqrt(p1 * (1 - p1) / n + p2 * (1 - p2) / n)
+    z_crit = stats.norm.ppf(1 - alpha / 2)
+    power = 1 - stats.norm.cdf(z_crit - (p2 - p1) / se_alt)
+    return round(power, 4)
+
+
+def minimum_detectable_effect(n, alpha=0.05, power=0.8):
+    """
+    Compute minimum detectable effect (MDE) for a two-proportion test.
+
+    Parameters
+    ----------
+    n : int
+        Sample size per group.
+    alpha : float
+        Significance level.
+    power : float
+        Desired statistical power.
+
+    Returns
+    -------
+    float
+        Minimum detectable effect (absolute difference).
     """
     z_alpha = stats.norm.ppf(1 - alpha / 2)
     z_beta = stats.norm.ppf(power)
-
-    p_pooled = p1
-
-    se_pooled = np.sqrt(2 * p_pooled * (1 - p_pooled) / n)
-
-    mde = (z_alpha + z_beta) * se_pooled
-    return mde
+    p_avg = 0.5
+    se = np.sqrt(2 * p_avg * (1 - p_avg) / n)
+    mde = (z_alpha + z_beta) * se
+    return round(mde, 4)
 
 
-def analyze_metric(data, metric_col, approval_col='approved', group_col='group'):
+def analyze_metric(group_a_data, group_b_data, metric, n_trials=2500, is_approval=True):
     """
-    Analyze a binary metric across groups.
+    Analyze a binary metric between two groups.
 
     Parameters
     ----------
-    data : pd.DataFrame
-        The experiment data
-    metric_col : str
-        Column name for the binary metric
-    approval_col : str
-        Column name indicating whether loan was approved
-    group_col : str
-        Column name for group assignment
+    group_a_data : pd.DataFrame
+        Control group data.
+    group_b_data : pd.DataFrame
+        Treatment group data.
+    metric : str
+        Column name of the binary metric.
+    n_trials : int
+        Number of trials (e.g., total applications).
+    is_approval : bool
+        True if higher is better, False if lower is better.
 
     Returns
     -------
     dict
-        Analysis results
+        Full statistical analysis results.
     """
-    group_a = data[data[group_col] == 'A']
-    group_b = data[data[group_col] == 'B']
+    n_a = len(group_a_data)
+    n_b = len(group_b_data)
+    x_a = int(group_a_data[metric].sum())
+    x_b = int(group_b_data[metric].sum())
 
-    if metric_col == 'approval_rate':
-        mask_a = np.ones(len(group_a), dtype=bool)
-        mask_b = np.ones(len(group_b), dtype=bool)
-        p1 = group_a['approved'].mean()
-        p2 = group_b['approved'].mean()
-    else:
-        mask_a = group_a['approved']
-        mask_b = group_b['approved']
-        p1 = group_a.loc[mask_a, metric_col].mean()
-        p2 = group_b.loc[mask_b, metric_col].mean()
+    result = two_proportion_ztest(n_a, x_a, n_b, x_b)
 
-    n1 = len(group_a)
-    n2 = len(group_b)
+    result["n_a"] = n_a
+    result["n_b"] = n_b
+    result["x_a"] = x_a
+    result["x_b"] = x_b
 
-    z_result = two_proportion_z_test(p1, p2, n1, n2)
+    mde = minimum_detectable_effect(n_a, alpha=0.05, power=0.8)
+    power = compute_statistical_power(n_a, result["p1"], result["p2"])
 
-    power = compute_statistical_power(p1, p2, n1, n2)
-    mde = minimum_detectable_effect(p1, min(n1, n2))
+    result["power"] = power
+    result["mde"] = mde
+    result["direction"] = "↑" if is_approval else "↓"
+    result["desired_direction"] = "higher_is_better" if is_approval else "lower_is_better"
+    result["metric"] = metric
 
-    return {
-        'metric': metric_col,
-        'group_a_rate': p1,
-        'group_b_rate': p2,
-        'absolute_diff': p2 - p1,
-        'relative_diff': (p2 - p1) / p1 if p1 != 0 else 0,
-        'z_statistic': z_result['z_statistic'],
-        'p_value': z_result['p_value'],
-        'ci_95_lower': z_result['ci_lower'],
-        'ci_95_upper': z_result['ci_upper'],
-        'significant': z_result['significant'],
-        'power': power,
-        'mde': mde
-    }
+    return result
+
+
+if __name__ == "__main__":
+    from scipy.stats import norm
+    print("Two-proportion z-test module ready.")
