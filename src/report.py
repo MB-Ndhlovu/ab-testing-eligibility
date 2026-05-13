@@ -1,77 +1,57 @@
+from src.simulate import run_simulation
+
+
 def generate_report(results):
-    """Generate a human-readable summary report."""
+    stats = results["group_stats"]
+    alpha = 0.05
+
     lines = []
     lines.append("=" * 60)
-    lines.append("       A/B TEST RESULTS: CREDIT ELIGIBILITY MODEL")
+    lines.append("A/B TESTING FRAMEWORK — CREDIT ELIGIBILITY")
     lines.append("=" * 60)
-    lines.append("")
 
-    # Sample sizes
-    lines.append(f"Sample Size: Group A (n={results['n_A']}), Group B (n={results['n_B']})")
-    lines.append("")
+    lines.append("\n[ SAMPLE OVERVIEW ]")
+    lines.append(f"  Total applicants: {results['sample_size']}")
+    for group in ["A", "B"]:
+        g = stats[group]
+        lines.append(f"  Group {group}: n={g['n']}, approval={g['approval_rate']:.4f}, "
+                     f"default={g['default_rate']:.4f}, avg_loan=R{g['avg_loan_size']:,.0f}, "
+                     f"proc_time={g['processing_time_mean']:.1f}s")
 
-    # Approval Rate
-    lines.append("-" * 60)
-    lines.append("METRIC: APPROVAL RATE (higher is better)")
-    lines.append("-" * 60)
-    a = results['approval']
-    lines.append(f"  Group A (Control): {a['rate_A']:.4f} ({a['rate_A']*100:.2f}%)")
-    lines.append(f"  Group B (Treatment): {a['rate_B']:.4f} ({a['rate_B']*100:.2f}%)")
-    lines.append(f"  Observed Effect: {a['effect']:+.4f} ({a['effect']*100:+.2f}pp)")
-    lines.append(f"  Minimum Detectable Effect: {a['mde']:.4f} ({a['mde']*100:.2f}pp)")
-    lines.append(f"  z-statistic: {a['z_statistic']:.4f}")
-    lines.append(f"  p-value: {a['p_value']:.6f}")
-    lines.append(f"  95% CI for difference: [{a['ci_95'][0]:+.4f}, {a['ci_95'][1]:+.4f}]")
-    lines.append(f"  Conclusion: {'SIGNIFICANT' if a['significant'] else 'NOT SIGNIFICANT'} at α=0.05")
-    lines.append("")
+    for test_key in ["approval_rate_test", "default_rate_test"]:
+        test = results[test_key]
+        metric = test["metric"]
+        lines.append(f"\n[ {metric.upper()} TEST ]")
+        lines.append(f"  Group A rate:      {test['group_a_rate']:.4f}")
+        lines.append(f"  Group B rate:      {test['group_b_rate']:.4f}")
+        lines.append(f"  Treatment effect:  {test['treatment_effect']:+.4f}")
+        lines.append(f"  Z-statistic:       {test['z_statistic']:.4f}")
+        lines.append(f"  P-value:           {test['p_value']:.6f}")
+        lines.append(f"  95% CI:            [{test['ci_lower']:.4f}, {test['ci_upper']:.4f}]")
+        lines.append(f"  Significant (α=0.05): {'YES' if test['significant'] else 'NO'}")
+        lines.append(f"  Power:             {test['power']:.4f}")
+        lines.append(f"  Min. det. effect:  {test['mde']:.4f}")
 
-    # Default Rate
-    lines.append("-" * 60)
-    lines.append("METRIC: DEFAULT RATE (lower is better)")
-    lines.append("-" * 60)
-    d = results['default']
-    lines.append(f"  Group A (Control): {d['rate_A']:.4f} ({d['rate_A']*100:.2f}%)")
-    lines.append(f"  Group B (Treatment): {d['rate_B']:.4f} ({d['rate_B']*100:.2f}%)")
-    lines.append(f"  Observed Effect: {d['effect']:+.4f} ({d['effect']*100:+.2f}pp)")
-    lines.append(f"  Minimum Detectable Effect: {d['mde']:.4f} ({d['mde']*100:.2f}pp)")
-    lines.append(f"  z-statistic: {d['z_statistic']:.4f}")
-    lines.append(f"  p-value: {d['p_value']:.6f}")
-    lines.append(f"  95% CI for difference: [{d['ci_95'][0]:+.4f}, {d['ci_95'][1]:+.4f}]")
-    lines.append(f"  Conclusion: {'SIGNIFICANT' if d['significant'] else 'NOT SIGNIFICANT'} at α=0.05")
-    lines.append("")
-
-    # Secondary metrics
-    lines.append("-" * 60)
-    lines.append("SECONDARY METRICS (not statistically tested)")
-    lines.append("-" * 60)
-    lines.append(f"  Avg Loan Size - Group A: R{results['avg_loan_size']['A']:,.2f}")
-    lines.append(f"  Avg Loan Size - Group B: R{results['avg_loan_size']['B']:,.2f}")
-    lines.append(f"  Avg Processing Time - Group A: {results['avg_processing_time']['A']:.2f} hours")
-    lines.append(f"  Avg Processing Time - Group B: {results['avg_processing_time']['B']:.2f} hours")
-    lines.append("")
-
-    # Overall recommendation
+    lines.append("\n" + "=" * 60)
+    lines.append("CONCLUSION")
     lines.append("=" * 60)
-    if a['significant'] and d['significant']:
-        lines.append("RECOMMENDATION: DEPLOY NEW MODEL (Group B)")
-        lines.append("  - Significantly higher approval rate")
-        lines.append("  - Significantly lower default rate")
-    elif a['significant']:
-        lines.append("RECOMMENDATION: DEPLOY NEW MODEL (Group B)")
-        lines.append("  - Significantly higher approval rate")
-        lines.append("  - Default rate change not significant")
-    elif d['significant']:
-        lines.append("RECOMMENDATION: REVIEW CAREFULLY")
-        lines.append("  - Default rate significantly improved")
-        lines.append("  - Approval rate change not significant")
+    ar = results["approval_rate_test"]
+    dr = results["default_rate_test"]
+    if ar["significant"] and dr["significant"]:
+        lines.append("  Both metrics show statistical significance.")
+        lines.append("  Group B (new model) approves more loans AND defaults less.")
+        lines.append("  RECOMMENDATION: Deploy new credit eligibility model.")
+    elif ar["significant"] and not dr["significant"]:
+        lines.append("  Approval rate is significantly better in Group B.")
+        lines.append("  Default rate difference is not significant.")
+        lines.append("  RECOMMENDATION: Consider with caution; monitor defaults.")
+    elif dr["significant"] and not ar["significant"]:
+        lines.append("  Default rate is significantly lower in Group B.")
+        lines.append("  Approval rate difference is not significant.")
+        lines.append("  RECOMMENDATION: Evaluate if higher approval is needed.")
     else:
-        lines.append("RECOMMENDATION: COLLECT MORE DATA")
-        lines.append("  - No statistically significant differences detected")
-    lines.append("=" * 60)
+        lines.append("  Neither metric shows statistical significance.")
+        lines.append("  Insufficient evidence to change models.")
+        lines.append("  RECOMMENDATION: Collect more data or revisit effect size.")
 
     return "\n".join(lines)
-
-if __name__ == '__main__':
-    from src.simulate import run_simulation
-    results = run_simulation()
-    print(generate_report(results))

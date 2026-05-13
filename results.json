@@ -1,38 +1,45 @@
 {
-  "n_A": 2500,
-  "n_B": 2500,
-  "approval": {
-    "rate_A": 0.6188,
-    "rate_B": 0.7032,
-    "effect": 0.08440000000000003,
-    "mde": 0.037510202580025714,
-    "z_statistic": 6.303719418850777,
-    "p_value": 2.905864437963146e-10,
-    "ci_95": [
-      0.05826220190672522,
-      0.11053779809327484
-    ],
-    "significant": true
+  "group_stats": {
+    "A": {
+      "n": 2500,
+      "approval_rate": 0.7284,
+      "default_rate": 0.09610104338275673,
+      "avg_loan_size": 17180.396595355276,
+      "processing_time_mean": 180.2348
+    },
+    "B": {
+      "n": 2500,
+      "approval_rate": 0.9184,
+      "default_rate": 0.08144599303135888,
+      "avg_loan_size": 18902.360139426564,
+      "processing_time_mean": 160.3728
+    }
   },
-  "default": {
-    "rate_A": 0.10277957336780866,
-    "rate_B": 0.08816837315130831,
-    "effect": -0.01461120021650035,
-    "mde": 0.023286373711423527,
-    "z_statistic": -1.757874500028111,
-    "p_value": 0.07876886552855122,
-    "ci_95": [
-      -0.030897403570214692,
-      0.0016750031372139915
-    ],
-    "significant": false
+  "approval_rate_test": {
+    "metric": "approval_rate",
+    "group_a_rate": 0.7284,
+    "group_b_rate": 0.9184,
+    "treatment_effect": 0.18999999999999995,
+    "z_statistic": -17.61602129027893,
+    "p_value": 0.0,
+    "ci_lower": -0.21047294281572412,
+    "ci_upper": -0.16952705718427577,
+    "significant": 1.0,
+    "power": 1.0,
+    "mde": 0.03962039811599345
   },
-  "avg_loan_size": {
-    "A": 18200.441671483637,
-    "B": 21730.684572355716
+  "default_rate_test": {
+    "metric": "default_rate",
+    "group_a_rate": 0.09610104338275673,
+    "group_b_rate": 0.08144599303135888,
+    "treatment_effect": -0.014655050351397844,
+    "z_statistic": 1.8217443832332247,
+    "p_value": 0.06849378016399554,
+    "ci_lower": -0.001106676148830775,
+    "ci_upper": 0.030416776851626463,
+    "significant": 0.0,
+    "power": 0.4450334320898326,
+    "mde": 0.03962039811599345
   },
-  "avg_processing_time": {
-    "A": 17.072513675694836,
-    "B": 16.352782259311194
-  }
+  "sample_size": 5000
 }
